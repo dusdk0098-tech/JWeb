@@ -1,5 +1,5 @@
 import { NoticeHistory } from "./NoticeHistory";
-import { Notice, TechDetails } from "./ui";
+import { ActionBar, Notice, TechDetails } from "./ui";
 import { useRef, useState } from "react";
 import { api, type Site } from "./api";
 import {
@@ -214,7 +214,7 @@ export function NoticeEditor({
           onChange={setTargets}
         />
       )}
-      <div className="actions">
+      <ActionBar note={<span role="status">{formDirty ? "저장하지 않은 입력" : record ? "서버에 저장됨" : ""}</span>}>
         {editable && (
           <button disabled={busy} onClick={() => run("save")}>
             공지 초안 저장
@@ -243,7 +243,7 @@ export function NoticeEditor({
             </a>
           </>
         )}
-      </div>
+      </ActionBar>
       {record?.publication && (
         <p>
           게시 계정 {record.publication.publisher.name} (

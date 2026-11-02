@@ -1,5 +1,5 @@
 import { RiskReuseForm } from "./RiskReuseForm";
-import { Notice, PageHeader, Section, StatusChip, TechDetails } from "./ui";
+import { ActionBar, Notice, PageHeader, Section, StatusChip, TechDetails } from "./ui";
 import { RiskReuseSource } from "./RiskReuseSource";
 import { RiskOpinionsPanel } from "./RiskOpinionsPanel";
 import { RiskPrintControl } from "./RiskPrintControl";
@@ -386,6 +386,7 @@ export function RiskAssessmentEditor({
               onChange={(e) => setReason(e.target.value)}
             />
           </label>
+          <ActionBar note={<span role="status">{dirty ? "저장하지 않은 입력" : row ? "서버에 저장됨" : ""}</span>}>
           <button
             disabled={
               busy ||
@@ -399,6 +400,7 @@ export function RiskAssessmentEditor({
           >
             초안 저장·방법별 입력 검증
           </button>
+          </ActionBar>
         </>
       )}
       {row && (

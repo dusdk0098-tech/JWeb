@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Notice } from "./ui";
+import { ActionBar, Notice } from "./ui";
 import { api, type Site, type User, soleManagerOf } from "./api";
 import { useDraftGuard } from "./useDraftGuard";
 import {
@@ -240,7 +240,9 @@ export function WorkStopEditor({
             시각은 직접 입력합니다. 브라우저/서버 시간대에서 자동 추정하지
             않습니다.
           </p>
+          <ActionBar note={<span role="status">{""}</span>}>
           <button disabled={busy}>요청 접수 기록 저장 (외부 알림 없음)</button>
+          </ActionBar>
         </form>
       ) : (
         <>

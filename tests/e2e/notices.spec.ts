@@ -60,7 +60,7 @@ test("explicit account notice publish acknowledgement and new-version reset", as
   await page
     .getByRole("button", { name: "내 계정으로 공지 확인", exact: true })
     .click();
-  await expect(page.getByRole("status")).toContainText("내 계정 확인");
+  await expect(page.getByRole("status").filter({ hasText: "내 계정 확인" })).toBeVisible(); // the save bar has its own status line now
   await page.getByLabel("처리 사유", { exact: true }).fill("후속 안내");
   await page
     .getByRole("button", { name: "후속 공지 초안 생성", exact: true })

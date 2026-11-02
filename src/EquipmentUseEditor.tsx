@@ -1,5 +1,5 @@
 import { useRef, useState } from "react";
-import { Notice, TechDetails } from "./ui";
+import { ActionBar, Notice, TechDetails } from "./ui";
 import { api, type Site, type User } from "./api";
 import type {
   EquipmentRecord,
@@ -190,7 +190,7 @@ export function EquipmentUseEditor({
           </>
         )}
       </fieldset>
-      <div className="actions">
+      <ActionBar note={<span role="status">{dirty ? "저장하지 않은 입력" : record ? "서버에 저장됨" : ""}</span>}>
         {editable && (
           <button
             disabled={busy || (!!record && !reason.trim())}
@@ -213,7 +213,7 @@ export function EquipmentUseEditor({
             </a>
           </>
         )}
-      </div>
+      </ActionBar>
       {record && (
         <EquipmentHistory
           key={record.id}

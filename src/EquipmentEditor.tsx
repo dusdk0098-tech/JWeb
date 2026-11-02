@@ -1,5 +1,5 @@
 import { useRef, useState } from "react";
-import { Notice, TechDetails } from "./ui";
+import { ActionBar, Notice, TechDetails } from "./ui";
 import { api, type Site } from "./api";
 import type { EquipmentInput, EquipmentRecord } from "./equipment-types";
 import { useDraftGuard } from "./useDraftGuard";
@@ -161,7 +161,7 @@ export function EquipmentEditor({
           </label>
         )}
       </fieldset>
-      <div className="actions">
+      <ActionBar note={<span role="status">{formDirty ? "저장하지 않은 입력" : record ? "서버에 저장됨" : ""}</span>}>
         {site.role === "manager" && (
           <>
             <button
@@ -206,7 +206,7 @@ export function EquipmentEditor({
             )}
           </>
         )}
-      </div>
+      </ActionBar>
       {record && (
         <EquipmentHistory
           key={record.id}
