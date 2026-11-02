@@ -83,14 +83,14 @@ export function AttendancePanel({
     [workerMore, setWorkerMore] = useState(false),
     [workerLoading, setWorkerLoading] = useState(false),
     [workerError, setWorkerError] = useState(""),
-    [chosen, setChosen] = useState<Worker | null>(null),
+    [chosen, setChosen] = useState<Worker[]>([]), // 검토 F14: several people at once
     [key, setKey] = useState(crypto.randomUUID());
   const [edit, setEdit] = useState<Attendance | null>(null),
     [status, setStatus] = useState<Attendance["status"]>("cancelled"),
     [reason, setReason] = useState(""),
     [editKey, setEditKey] = useState(crypto.randomUUID()),
     [history, setHistory] = useState<Attendance | null>(null);
-  const dirty = !!edit || !!chosen;
+  const dirty = !!edit || chosen.length > 0;
   useEffect(() => onDirtyChange(dirty), [dirty, onDirtyChange]);
   useEffect(() => onBusyChange(busy), [busy, onBusyChange]);
   function mayDiscard() {
@@ -145,24 +145,24 @@ export function AttendancePanel({
     };
   }, [site.id, site.role, search, workerOffset, tick]);
   async function register() {
-    if (!chosen || busy) return;
+    if (!chosen.length || busy) return;
     setBusy(true);
     setError("");
-    try {
-      await api(
-        `/sites/${site.id}/attendance`,
-        "POST",
-        { workerId: chosen.id, date },
-        key,
-      );
-      setChosen(null);
-      setKey(crypto.randomUUID());
-      setTick((t) => t + 1);
-    } catch (e) {
-      setError((e as Error).message);
-    } finally {
-      setBusy(false);
+    // One record per person, each its own request; the ones that fail stay selected with their reason.
+    const failed: string[] = [], left: Worker[] = [];
+    for (const [i, w] of chosen.entries()) {
+      try {
+        await api(`/sites/${site.id}/attendance`, "POST", { workerId: w.id, date }, i === 0 ? key : crypto.randomUUID());
+      } catch (e) {
+        failed.push(`${w.name}: ${(e as Error).message}`);
+        left.push(w);
+      }
     }
+    setChosen(left);
+    setKey(crypto.randomUUID());
+    setTick((t) => t + 1);
+    if (failed.length) setError(failed.join(" · "));
+    setBusy(false);
   }
   async function correct(e: React.FormEvent) {
     e.preventDefault();
@@ -402,15 +402,13 @@ export function AttendancePanel({
                   <button
                     type="button"
                     disabled={busy}
-                    className={chosen?.id === w.id ? "" : "secondary"}
-                    onClick={() => {
-                      setChosen(w);
-                      setKey(crypto.randomUUID());
-                    }}
+                    className={chosen.some((c) => c.id === w.id) ? "" : "secondary"}
+                    aria-pressed={chosen.some((c) => c.id === w.id)}
+                    onClick={() => setChosen((cs) => (cs.some((c) => c.id === w.id) ? cs.filter((c) => c.id !== w.id) : [...cs, w]))}
                   >
                     {w.name} · {w.affiliation} ·{" "}
                     {w.kind === "worker" ? "근로자" : "방문자"}
-                    <small>ID {w.id}</small>
+                    <small>{chosen.some((c) => c.id === w.id) ? "선택됨 · 다시 누르면 해제" : "눌러서 선택"}</small>
                   </button>
                 </li>
               ))}
@@ -434,13 +432,11 @@ export function AttendancePanel({
           </div>
           <p>
             선택:{" "}
-            {chosen
-              ? `${chosen.name} / ${chosen.affiliation} / ${chosen.id}`
-              : "없음"}{" "}
+            {chosen.length ? `${chosen.map((c) => c.name).join(", ")} (${chosen.length}명)` : "없음"}{" "}
             · 등록일 {date}
           </p>
-          <button disabled={busy || !chosen || !date} onClick={register}>
-            {busy ? "저장 중…" : "선택 대상 수기 출역 등록"}
+          <button disabled={busy || !chosen.length || !date} onClick={register}>
+            {busy ? "저장 중…" : `선택 ${chosen.length}명 출역 등록`}
           </button>
         </section>
       )}

@@ -39,7 +39,7 @@ test("manual roster/attendance with cancel guards, correction history and print"
     .getByRole("button", { name: /김합성 · 합성 업체 · 근로자/ })
     .click();
   await page
-    .getByRole("button", { name: "선택 대상 수기 출역 등록", exact: true })
+    .getByRole("button", { name: "선택 1명 출역 등록", exact: true })
     .click();
   await expect(page.getByRole("status")).toContainText("출역 1명");
   await page.getByRole("button", { name: "정정 / 취소", exact: true }).click();
