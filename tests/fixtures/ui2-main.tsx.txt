@@ -5,6 +5,7 @@ import {
   CompanyPpePanel,
   WorkStopPanel,
   IncidentsPanel,
+  PermitsPanel,
   ManagerOverview,
   WorkPlanPanel,
   StockPanel,
@@ -321,6 +322,15 @@ function App() {
           <IncidentsPanel
             key={site.id}
             site={site}
+            openId={focus?.id}
+            onDirtyChange={setAttendanceDirty}
+            onBusyChange={setAttendanceBusy}
+          />
+        ) : site && tab === "permits" ? (
+          <PermitsPanel
+            key={site.id}
+            site={site}
+            user={user}
             openId={focus?.id}
             onDirtyChange={setAttendanceDirty}
             onBusyChange={setAttendanceBusy}

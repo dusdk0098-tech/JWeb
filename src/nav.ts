@@ -10,6 +10,7 @@ export const NAV_GROUPS: NavGroup[] = [
     { id: "hazards", title: "신고 · 조치", icon: "report" },
     { id: "workstops", title: "작업 중지 요청", icon: "stop" },
     { id: "incidents", title: "사고 · 아차사고", icon: "warning" },
+    { id: "permits", title: "작업허가서", icon: "check" },
     { id: "education", title: "교육일지", icon: "education" },
   ] },
   { id: "docs", title: "문서", icon: "work-plan", items: [
