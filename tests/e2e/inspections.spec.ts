@@ -79,7 +79,9 @@ test("own template publish, inspection submit and independent return", async ({
     await staff
       .getByRole("button", { name: "양식 / 새 점검", exact: true })
       .click();
+    // A new site also carries the default forms, so pick the row of the form this test published.
     await staff
+      .locator("article", { hasText: "자체 통로 확인" })
       .getByRole("button", { name: "이 버전으로 직접 새 점검", exact: true })
       .click();
     await staff.getByLabel("장소", { exact: true }).fill("작업구역");
