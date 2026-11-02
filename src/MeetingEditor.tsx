@@ -1,7 +1,7 @@
 import { MinutesAttachments } from "./MinutesAttachments";
 import { Fragment } from "react";
 import { AiPolish } from "./AiDescriptionSuggest";
-import { Notice, TechDetails } from "./ui";
+import { ActionBar, Notice, TechDetails } from "./ui";
 import { MinutesFollowupsPanel } from "./MinutesFollowupsPanel";
 import { useDraftGuard } from "./useDraftGuard";
 import { useState } from "react";
@@ -290,7 +290,7 @@ export function MeetingEditor({
             {error}
           </p>
         )}
-        <div className="form-actions">
+        <ActionBar note={<span role="status">{dirty ? "저장하지 않은 변경사항" : saved ? "서버에 저장됨" : ""}</span>}>
           {writable && (
             <button disabled={busy || (!dirty && !!saved)}>
               {busy ? "저장 중…" : "초안 저장"}
@@ -306,10 +306,7 @@ export function MeetingEditor({
               저장본 인쇄 / PDF
             </a>
           )}
-          <span role="status">
-            {dirty ? "저장하지 않은 변경사항" : saved ? "서버에 저장됨" : ""}
-          </span>
-        </div>
+        </ActionBar>
         {dirty && saved && (
           <p className="muted">
             인쇄는 마지막으로 저장된 버전입니다. 변경 내용을 먼저 저장하세요.

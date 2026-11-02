@@ -1,6 +1,6 @@
 import { HazardAttachments } from "./HazardAttachments";
 import { useOfflineDraft } from "./useOfflineDraft";
-import { Notice, TechDetails } from "./ui";
+import { ActionBar, Notice, TechDetails } from "./ui";
 import { HazardInspectionSource } from "./HazardInspectionSource";
 import { useEffect, useRef, useState } from "react";
 import { api, type Site, type User, soleManagerOf } from "./api";
@@ -275,7 +275,7 @@ export function HazardEditor({
             />
           </label>
         </fieldset>
-        <div className="form-actions">
+        <ActionBar note={<span role="status">{dirty ? "저장하지 않은 입력" : record ? "서버에 저장됨" : ""}</span>}>
           {editable && (
             <>
               <button
@@ -306,10 +306,7 @@ export function HazardEditor({
               </button>
             </>
           )}
-          <span role="status">
-            {dirty ? "저장하지 않은 입력" : record ? "서버에 저장됨" : ""}
-          </span>
-        </div>
+        </ActionBar>
       </form>
       {record && (
         <>

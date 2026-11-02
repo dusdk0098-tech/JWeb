@@ -1,5 +1,5 @@
 import { EducationAttachments } from "./EducationAttachments";
-import { Notice, TechDetails } from "./ui";
+import { ActionBar, Notice, TechDetails } from "./ui";
 import { CatalogCurrentWarning } from "./CatalogCurrentWarning";
 import { EducationCatalogProvenance } from "./EducationCatalogProvenance";
 import { useEffect, useRef, useState } from "react";
@@ -265,7 +265,7 @@ export function EducationEditor({
           />
         </label>
       </fieldset>
-      <div className="actions">
+      <ActionBar note={<span role="status">{formDirty ? "저장하지 않은 입력" : record ? "서버에 저장됨" : ""}</span>}>
         {editable && (
           <button
             disabled={busy || attachmentDirty || participantDirty}
@@ -288,7 +288,7 @@ export function EducationEditor({
             </a>
           </>
         )}
-      </div>
+      </ActionBar>
       {formDirty && record && (
         <p className="notice">
           본문 변경을 저장한 뒤 참여 기록을 변경할 수 있습니다. 예정시간을
