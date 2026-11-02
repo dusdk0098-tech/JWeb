@@ -169,6 +169,8 @@ export function RiskCorePanel({
         아닙니다. 전체 방법·참여/서명과 독립 보안·실제 브라우저 검증은
         미완료입니다.
       </Notice>
+      <details className="advanced-tools">
+      <summary>고급 · 내 업무 · 게시본 · 현황 · 의견함 · 전체 검색</summary>
       <div className="tool-row" role="group" aria-label="위험성평가 도구">
       <button className="secondary" disabled={loading} onClick={() => setOpened({ kind: "inbox" })}>내 위험성평가 업무</button>
       <button className="secondary" disabled={loading} onClick={() => setOpened({ kind: "publications" })}>고정 평가 게시본·내 계정 확인</button>
@@ -182,6 +184,7 @@ export function RiskCorePanel({
       </button>
       <button className="secondary" disabled={loading} onClick={() => setOpened({kind:"register"})}>평가 문서 목록 검색 (모든 방법)</button>
       </div>
+      </details>
       {switcher}
       <div className="filter-bar">
       <label>
