@@ -63,6 +63,6 @@ test('education shares retained quota with all four existing domains and exact m
 });
 test('education parent SSR and attachment UI preserve author-only/no-preview/no-inheritance language',async()=>{
  const f=await educationAttachmentFixture();try{const record=await f.current();const noop=()=>{};const html=renderToStaticMarkup(createElement(EducationAttachments,{siteId:f.site,record,editable:false,disabled:false,onBusy:noop,onDirty:noop,onRecord:noop}));assert.match(html,/다른 관리자는/);assert.match(html,/정정은 첨부 없는 새 초안/);assert.match(html,/다섯 업무/);assert.doesNotMatch(html,/type="file"|<img|<iframe/);
- const parent=renderToStaticMarkup(createElement(EducationEditor,{site:{id:f.site,name:'합성',role:'manager',version:1},user:{id:f.manager,name:'합성',email:'synthetic@example.test'},initial:record,onClose:noop,onOpen:async()=>{},onRevision:noop,onDirtyChange:noop,onBusyChange:noop}));assert.match(parent,/교육일지 원본 첨부/);assert.match(parent,/관리자 기록 보관/);
+ const parent=renderToStaticMarkup(createElement(EducationEditor,{site:{id:f.site,name:'합성',role:'manager',version:1},user:{id:f.manager,name:'합성',email:'synthetic@example.test'},initial:record,onClose:noop,onOpen:async()=>{},onRevision:noop,onDirtyChange:noop,onBusyChange:noop}));assert.match(parent,/교육일지 원본 첨부/);assert.match(parent,/관리자가 기록 확정/);
  }finally{f.db.close();}
 });

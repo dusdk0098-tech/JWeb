@@ -185,10 +185,10 @@ export function DailyJournalPanel({
         items.items.map((j) => (
           <article key={j.id} className="record-row">
             <div className="record-row-main">
-              <h2>{j.date} · {j.status === "archived" ? "관리자 기록 보관" : "초안"}</h2>
+              <h2>{j.date} · {j.status === "archived" ? "확정" : "초안"}</h2>
               <p>{j.workSummary.slice(0, 200) || "작업 요약 미입력"}</p>
             </div>
-            {j.status === "archived" ? <StatusChip tone="done">확정 보관</StatusChip>
+            {j.status === "archived" ? <StatusChip tone="done">확정</StatusChip>
               : <StatusChip tone="draft">{j.parent_id ? "정정 초안" : "작성 중"}</StatusChip>}
             <button className="secondary" disabled={busy} onClick={() => void view(j.id)}>
               일지 열기

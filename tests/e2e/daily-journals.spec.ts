@@ -59,7 +59,7 @@ test("manual daily journal explicit capture, archive, preserved prior and fresh 
   ).toBeVisible();
   page.once("dialog", (d) => d.accept());
   await page
-    .getByRole("button", { name: "관리자가 일지 기록 보관", exact: true })
+    .getByRole("button", { name: "관리자가 기록 확정", exact: true })
     .click();
   await expect(
     page.getByRole("heading", {

@@ -147,7 +147,7 @@ export function EducationPanel({
                       {r.body.date} ·{" "}
                       {r.status === "draft"
                         ? "초안"
-                        : "관리자가 기록 보관 확정"}
+                        : "확정"}
                     </small>
                     <strong>{r.body.title}</strong>
                     {r.parent_id && <small>정정본</small>}

@@ -146,10 +146,10 @@ export function WorkPlanEditor({
           if (guard.canLeave()) onClose();
         }}
         title={record?.status === "archived"
-          ? (record.documentReview.review ? "작성자 고정 제출본 · 문서검토 별도" : "관리자 기록 보관본 · 문서검토 없음")
+          ? (record.documentReview.review ? "작성자 고정 제출본 · 문서검토 별도" : "관리자 확정본 · 문서검토 없음")
           : "자체 일반 작업계획 초안"}
         status={
-          record?.status === "archived" ? <StatusChip tone="done">확정 보관</StatusChip>
+          record?.status === "archived" ? <StatusChip tone="done">확정</StatusChip>
           : record?.parent_id ? <StatusChip tone="draft">정정 초안</StatusChip>
           : record ? <StatusChip tone="draft">작성 중</StatusChip>
           : <StatusChip tone="neutral">새 작업계획</StatusChip>
@@ -448,7 +448,7 @@ export function WorkPlanEditor({
                   void command("archive");
               }}
             >
-              관리자가 기록 보관
+              관리자가 기록 확정
             </button>
           )}
           </Section>

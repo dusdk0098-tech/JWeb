@@ -224,7 +224,7 @@ export function DailyJournalEditor({
         }}
         title={record?.status === "archived" ? "관리자가 보관한 안전업무일지" : "안전업무일지 초안"}
         status={
-          record?.status === "archived" ? <StatusChip tone="done">확정 보관</StatusChip>
+          record?.status === "archived" ? <StatusChip tone="done">확정</StatusChip>
           : record?.parent_id ? <StatusChip tone="draft">정정 초안</StatusChip>
           : record ? <StatusChip tone="draft">작성 중</StatusChip>
           : <StatusChip tone="neutral">새 일지</StatusChip>
@@ -457,10 +457,10 @@ export function DailyJournalEditor({
                 disabled={allBusy || dirty || !record.source_capture}
                 onClick={() => void command("archive")}
               >
-                관리자가 일지 기록 보관
+                관리자가 기록 확정
               </button>
               <button type="button" className="secondary" disabled={allBusy || dirty} onClick={() => void captureAndArchive()}>
-                참조 취합 후 보관
+                참조 취합 후 확정
               </button>
             </>
           )}
