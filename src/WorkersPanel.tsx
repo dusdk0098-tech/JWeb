@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Notice } from "./ui";
+import { EmptyState, Notice } from "./ui";
 import { api, type Site } from "./api";
 import type { Worker, Page } from "./attendance-types";
 import { WorkerIdentity } from "./WorkerIdentity";
@@ -104,6 +104,7 @@ export function WorkersPanel({
       setBusy(false);
     }
   }
+  const emptyRoster = !loading && !search && offset === 0 && items.length === 0; // 검토 F2
   return (
     <section className="panel">
       <h2>현장 명부</h2>
@@ -117,6 +118,7 @@ export function WorkersPanel({
           {error}
         </p>
       )}
+      {emptyRoster ? <EmptyState title="아직 명부가 없습니다">아래에서 첫 사람을 등록하세요. 이름·소속·구분만 넣습니다.</EmptyState> : <>
       <label>
         명부 검색
         <input
@@ -193,6 +195,7 @@ export function WorkersPanel({
           명부 새로고침
         </button>
       </div>
+      </>}
       {site.role === "manager" ? (
         <form onSubmit={save}>
           <h3>{edit ? "명부 수정" : "명부 신규 등록"}</h3>

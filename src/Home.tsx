@@ -22,7 +22,10 @@ function PublicStatusLine({ onOpen }: { onOpen: (tab: string) => void }) {
   const open = () => { if (s.step) sessionStorage.setItem("public-setup-step", s.step); onOpen("public"); };
   return <StatusBar tone={PUBLIC_TONE[s.tone]}>{s.line} <button type="button" className="secondary" onClick={open}>외부 접속 설정 열기</button></StatusBar>;
 }
-export function Home({ site, user, ads, operatorLocal, onOpen }: { site: Site | undefined; user: User; ads?: boolean; operatorLocal?: boolean; onOpen: (tab: string) => void }) {
+type Focus = { id?: string; sub?: string };
+// Tasks whose id is a record the target screen can open directly (the others open the screen).
+const OPENS_RECORD = new Set(["신고 조치", "신고 검토", "점검 검토"]);
+export function Home({ site, user, ads, operatorLocal, onOpen }: { site: Site | undefined; user: User; ads?: boolean; operatorLocal?: boolean; onOpen: (tab: string, focus?: Focus) => void }) {
   const [data, setData] = useState<Data | null>(null), [error, setError] = useState(""), [adList, setAdList] = useState<Ad[]>([]);
   useEffect(() => {
     // 광고 (결정 6): text, link and image come from this server only; nothing about the site leaves it (docs/ADS.md).
@@ -93,10 +96,10 @@ export function Home({ site, user, ads, operatorLocal, onOpen }: { site: Site | 
   );
   // 첫 실행 안내 (편의 4): shown until the site has its first TBM; each step opens the screen that does it.
   const steps = data && data.tbm.length === 0 ? [
-    { label: "현장 만들기", done: true, tab: "sites", go: "" },
-    { label: "명부 등록", done: data.workers > 0, tab: "attendance", go: "명부 등록하러 가기" },
-    ...(data.members !== null ? [{ label: "구성원 추가", done: data.members > 1, tab: "sites", go: "구성원 추가하러 가기" }] : []),
-    { label: "첫 TBM", done: false, tab: "tbm", go: "첫 TBM 쓰러 가기" },
+    { label: "현장 만들기", done: true, tab: "sites", go: "", sub: "" },
+    { label: "명부 등록", done: data.workers > 0, tab: "attendance", go: "명부 등록하러 가기", sub: "workers" },
+    ...(data.members !== null ? [{ label: "구성원 추가", done: data.members > 1, tab: "sites", go: "구성원 추가하러 가기", sub: "" }] : []),
+    { label: "첫 TBM", done: false, tab: "tbm", go: "첫 TBM 쓰러 가기", sub: "" },
   ] : [];
   const dueText = (t: Task) => !t.due ? "" : (t.late ? "기한 지남 · " : "") + (t.due === d ? "오늘" : KOR_DATE(t.due)) + " · ";
   return (
@@ -113,6 +116,15 @@ export function Home({ site, user, ads, operatorLocal, onOpen }: { site: Site | 
         {card("", "내 할 일", !data ? "조회 중" : tasks.length ? `${tasks.length}건${late ? ` · 기한 지남 ${late}건` : ""}` : "없음", late ? "signal" : tasks.length ? "draft" : "neutral", "inspection")}
         {site.role === "manager" && card("costs", "산업안전보건관리비", openPeriod ? `${openPeriod.month} 작성 중` : "열린 월 없음", openPeriod ? "draft" : "neutral", "cost")}
       </div>
+      <section className="home-list">
+        <h2>바로 가기</h2>
+        <div className="home-actions">
+          <button type="button" onClick={() => onOpen("tbm")}><UiIcon d={ICON.check} />TBM 시작</button>
+          <button type="button" className="secondary" onClick={() => onOpen("inspections")}>점검 작성</button>
+          <button type="button" className="secondary" onClick={() => onOpen("hazards")}>신고 접수</button>
+          <button type="button" className="secondary" onClick={() => onOpen("photoboard")}>사진 올리기</button>
+        </div>
+      </section>
       {steps.length > 0 && (
         <section className="home-list home-steps">
           <h2>시작하기 <span className="muted">첫 TBM을 쓰면 이 안내는 사라집니다</span></h2>
@@ -120,7 +132,7 @@ export function Home({ site, user, ads, operatorLocal, onOpen }: { site: Site | 
             <div key={st.label} className="home-row">
               <span className="home-row-kind">{i + 1}</span>
               <span className="home-row-title">{st.label}</span>
-              {st.done ? <StatusChip tone="done">완료</StatusChip> : <button type="button" className="secondary" onClick={() => onOpen(st.tab)}>{st.go}</button>}
+              {st.done ? <StatusChip tone="done">완료</StatusChip> : <button type="button" className="secondary" onClick={() => onOpen(st.tab, st.sub ? { sub: st.sub } : undefined)}>{st.go}</button>}
             </div>
           ))}
         </section>
@@ -129,7 +141,7 @@ export function Home({ site, user, ads, operatorLocal, onOpen }: { site: Site | 
         <h2>내 할 일 <span className="muted">{data ? `${tasks.length}건` : "조회 중"}</span></h2>
         {data && tasks.length === 0 && <p className="ui-empty"><img src="/illustrations/all-done.svg" alt="" /><strong>지금 나에게 배정되거나 기다리는 일이 없습니다</strong></p>}
         {tasks.slice(0, 12).map((t) => (
-          <button type="button" key={t.kind + t.id} className="home-row" onClick={() => onOpen(t.tab)}>
+          <button type="button" key={t.kind + t.id} className="home-row" onClick={() => onOpen(t.tab, OPENS_RECORD.has(t.kind) ? { id: t.id } : undefined)}>
             <span className="home-row-kind">{t.kind}</span>
             <span className="home-row-title">{dueText(t)}{t.title}</span>
             <StatusChip tone={t.late ? "error" : t.review ? "pending" : "draft"}>{t.late ? "기한 지남" : t.review ? "확인 대기" : "배정됨"}</StatusChip>
@@ -141,21 +153,12 @@ export function Home({ site, user, ads, operatorLocal, onOpen }: { site: Site | 
         <h2>내가 작성 중인 기록 <span className="muted">{data ? `${drafts.length}건` : "조회 중"}</span></h2>
         {data && drafts.length === 0 && <p className="ui-empty"><img src="/illustrations/all-done.svg" alt="" /><strong>작성 중인 기록이 없습니다</strong></p>}
         {drafts.map((r) => (
-          <button type="button" key={r.kind + r.id} className="home-row" onClick={() => onOpen(r.tab)}>
+          <button type="button" key={r.kind + r.id} className="home-row" onClick={() => onOpen(r.tab, { id: r.id })}>
             <span className="home-row-kind">{r.kind}</span>
             <span className="home-row-title">{r.when ? KOR_DATE(r.when) + " · " : ""}{r.title}</span>
             <StatusChip tone="draft">작성 중</StatusChip>
           </button>
         ))}
-      </section>
-      <section className="home-list">
-        <h2>바로 가기</h2>
-        <div className="home-actions">
-          <button type="button" onClick={() => onOpen("tbm")}><UiIcon d={ICON.check} />TBM 시작</button>
-          <button type="button" className="secondary" onClick={() => onOpen("inspections")}>점검 작성</button>
-          <button type="button" className="secondary" onClick={() => onOpen("hazards")}>신고 접수</button>
-          <button type="button" className="secondary" onClick={() => onOpen("photoboard")}>사진 올리기</button>
-        </div>
       </section>
       {adList.length > 0 && (
         <aside className="ad-slot" aria-label="광고">

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { EmptyState, Notice, PageHeader, StatusChip } from "./ui";
 import { api, type Site, type User } from "./api";
 import type { Page } from "./attendance-types";
@@ -10,11 +10,13 @@ import {
 } from "./work-plan-types";
 export function WorkPlanPanel({
   site,
+  openId,
   user,
   onDirtyChange,
   onBusyChange,
 }: {
   site: Site;
+  openId?: string;
   user: User;
   onDirtyChange: (v: boolean) => void;
   onBusyChange: (v: boolean) => void;
@@ -62,6 +64,9 @@ export function WorkPlanPanel({
       onBusyChange(false);
     }
   }
+  // 검토 F15: the home screen names a record to open
+  const openedFromHome = useRef<string | null>(null);
+  useEffect(() => { if (openId && openedFromHome.current !== openId) { openedFromHome.current = openId; void view(openId); } }, [openId]);
   if (record !== undefined)
     return (
       <WorkPlanEditor
