@@ -266,8 +266,7 @@ export function DailyJournalEditor({
               onChange={(e) => setDay(e.target.value)}
             />
           </label>
-          {editable && <DailyJournalToday siteId={site.id} date={day} />}
-          <Section no={3} level={3} title="관찰·조치 입력">
+          <Section no={1} level={3} title="관찰·조치 입력">
           <label>
             작업 요약 · 보관 시 필수
             <textarea
@@ -409,6 +408,7 @@ export function DailyJournalEditor({
             />
           </label>
           </Section>
+          {editable && <DailyJournalToday siteId={site.id} date={day} />}
           <Section no={4} level={3} title="참조 확인">
           <label><input type="checkbox" checked={body.inspectionReferences!==undefined} onChange={e=>{if(!e.target.checked&&!window.confirm('미저장 점검 선택과 메모를 제거할까요?'))return;const next={...body};if(e.target.checked)next.inspectionReferences=[];else delete next.inspectionReferences;setBody(next);}}/>같은 날 점검 제출본 참조</label>
           {body.inspectionReferences&&<DailyInspectionReferences siteId={site.id} date={day} value={body.inspectionReferences} onChange={v=>setBody({...body,inspectionReferences:v})} onBusy={setInspectionBusy}/>}

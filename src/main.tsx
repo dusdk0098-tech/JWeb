@@ -339,6 +339,7 @@ function App() {
             site={site}
             openId={focus?.id}
             user={user}
+            onNavigate={(next) => { if (!mayLeaveAttendance()) return; setTab(next); setFocus({ sub: "workers" }); setError(""); }}
             onDirtyChange={setAttendanceDirty}
             onBusyChange={setAttendanceBusy}
           />

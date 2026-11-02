@@ -22,6 +22,7 @@ test("TBM link participation: manager registers birth date, worker confirms with
   await page.getByRole("button", { name: "TBM 초안 저장", exact: true }).click();
   await expect(page.getByRole("status")).toHaveText("서버에 저장됨");
   await page.getByRole("button", { name: /박참여 · 합성 소속/ }).click();
+  await page.locator("summary", { hasText: "참여 링크 · QR" }).click(); // folded by default
   await page.getByRole("button", { name: "참여 링크 만들기" }).click();
   const link = await page.getByLabel("참여 링크").inputValue();
   expect(link).toMatch(/\/join#t=[A-Za-z0-9_-]{43}$/);
