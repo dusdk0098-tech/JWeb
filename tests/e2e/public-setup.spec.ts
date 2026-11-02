@@ -1,7 +1,7 @@
 import { test, expect } from "@playwright/test";
 // 외부 접속 마법사 (specs/001-easy-domain-setup US1). The server runs with TEST_PUBLIC_FAKES: router, DNS, firewall and
 // the outside test are a synthetic world this spec changes through PUT /api/test/public-state.
-test("domain wizard: questions, step checks with values to copy, apply only when every step is done", async ({ page }) => {
+test("domain wizard: Cloudflare Tunnel first, direct under 고급; step checks with values to copy, apply only when every step is done", async ({ page }) => {
   await page.goto("/");
   await page.getByLabel("이메일", { exact: true }).fill("test@example.test");
   await page.getByLabel("비밀번호", { exact: true }).fill("synthetic-e2e-password");
@@ -12,13 +12,16 @@ test("domain wizard: questions, step checks with values to copy, apply only when
   // 홈 상태 한 줄 (US3): the operator on this PC sees where the domain stands and opens the wizard from there.
   await expect(page.getByText("휴대폰에서도 쓰려면 도메인을 연결하세요.")).toBeVisible();
   await page.getByRole("button", { name: "외부 접속 설정 열기" }).click();
+  const step = (id: string) => page.locator(`#setup-${id}`), wizard = page.locator(".setup-wizard");
+  // Cloudflare Tunnel first: no questions, no router steps.
   await page.getByRole("button", { name: "도메인 연결 시작", exact: true }).click();
-  await page.getByLabel("도메인이 있어요").check();
-  await page.getByLabel("공유기 설정을 바꿀 수 있어요").check();
-  await page.getByRole("button", { name: "다음", exact: true }).click();
-  await expect(page.getByText("추천 방식: 직접 연결 + 자동 HTTPS")).toBeVisible();
-
-  const step = (id: string) => page.locator(`#setup-${id}`);
+  await expect(wizard).toContainText("방식: Cloudflare Tunnel · 무료이고 공유기를 만지지 않아도 됩니다.");
+  await expect(step("cf-provision")).toBeVisible();
+  await expect(step("router")).toHaveCount(0);
+  // This run goes on with the direct connection, chosen under 고급.
+  await wizard.getByText("고급: 다른 방식").click();
+  await wizard.getByLabel("방식").selectOption({ label: "직접 연결 + 자동 HTTPS" });
+  await expect(step("router")).toBeVisible();
   await step("domain").getByLabel("도메인").fill("safety.example.test");
   await step("domain").getByRole("button", { name: "도메인 저장" }).click();
   await expect(step("domain")).toContainText("완료");

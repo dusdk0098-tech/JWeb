@@ -94,7 +94,7 @@ export function registerPublicSetup(app: Express, db: Db, runtime: PublicRuntime
     const s = setup(), m = mode(s);
     const steps = s && m ? ORDER[m].map((id) => stepView(id, s, m, deps)) : [];
     return {
-      started: !!s, answers: s && s.hasDomain !== null ? { hasDomain: s.hasDomain, canRouter: s.canRouter } : null,
+      started: !!s,
       recommended: s?.recommended ?? null, chosen: m, domain: s?.domain ?? "", email: s?.email ?? "", agreeTos: s?.agreeTos ?? false,
       cfHint: s?.cfHint ?? null, steps, canApply: steps.length > 0 && steps.every(passes),
       runtime, platform: deps.platform === "win32" ? "win32" : "other", launcher: !!runtime.launcher, externalServices: EXTERNAL_SERVICES,
@@ -124,10 +124,10 @@ export function registerPublicSetup(app: Express, db: Db, runtime: PublicRuntime
 
   app.get("/api/public-setup", route((_req, res) => res.json(view())));
   app.get("/api/public-access/status", route((_req, res) => res.json(summarize(runtime, !!setup()))));
-  app.put("/api/public-setup/answers", route((req, res, user) => {
-    const a = z.object({ hasDomain: z.boolean(), canRouter: z.boolean() }).strict().parse(req.body);
-    const rec: SetupMode = a.canRouter ? "direct" : "tunnel";
-    writeSetup(db, secret, user, { hasDomain: a.hasDomain, canRouter: a.canRouter, recommended: rec, chosen: rec });
+  // Cloudflare Tunnel first (사용자 결정 2026-11-02): free, and no router or firewall changes. Direct connection stays
+  // available under 고급 through /form { chosen }. Starting again keeps what was already chosen.
+  app.post("/api/public-setup/start", route((_req, res, user) => {
+    if (!setup()) writeSetup(db, secret, user, { recommended: "tunnel", chosen: "tunnel" });
     res.json(view());
   }));
   app.put("/api/public-setup/form", route(async (req, res, user) => {

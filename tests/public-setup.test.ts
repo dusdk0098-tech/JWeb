@@ -99,12 +99,16 @@ test("wizard: operator on this PC only; nothing leaks to others", async () => {
       const r = await op.get(headers);
       assert.equal(r.status, 403);
       assert.ok(!JSON.stringify(r.body).includes("203.0.113"), "no IP in a refusal");
-      assert.equal((await op.send("put", "/answers", { hasDomain: true, canRouter: true }, headers)).status, 403);
+      assert.equal((await op.send("post", "/start", {}, headers)).status, 403);
     }
     assert.equal((await worker.get()).status, 403);
     assert.equal((await worker.send("post", "/apply")).status, 403);
-    assert.equal((await op.send("put", "/answers", { hasDomain: true, canRouter: true })).body.recommended, "direct");
-    assert.equal((await op.send("put", "/answers", { hasDomain: true, canRouter: false })).body.recommended, "tunnel");
+    let v = (await op.send("post", "/start")).body;
+    assert.deepEqual([v.started, v.recommended, v.chosen], [true, "tunnel", "tunnel"], "Cloudflare Tunnel first");
+    assert.deepEqual(v.steps.map((s: { id: string }) => s.id), ["domain", "cf-token", "cf-provision", "cloudflared"]);
+    await op.send("put", "/form", { chosen: "direct" });
+    v = (await op.send("post", "/start")).body;
+    assert.equal(v.chosen, "direct", "starting again keeps the chosen method");
   } finally { f.close(); }
 });
 test("wizard: direct connection — checks, router fallback, apply only when every step passes", async () => {
@@ -112,7 +116,8 @@ test("wizard: direct connection — checks, router fallback, apply only when eve
   const f = await fixture(runtime);
   try {
     const op = await f.login("op@example.test");
-    await op.send("put", "/answers", { hasDomain: true, canRouter: true });
+    await op.send("post", "/start");
+    await op.send("put", "/form", { chosen: "direct" });
     assert.equal((await op.send("put", "/form", { domain: "bad domain" })).status, 400);
     let v = (await op.send("put", "/form", { domain: "safety.example.test", email: "o@example.test", agreeTos: true })).body;
     assert.deepEqual(v.steps.map((s: { id: string }) => s.id), ["domain", "cf-token", "dns", "firewall", "router", "cert-info"]);
@@ -159,7 +164,7 @@ test("wizard: tunnel — API token sealed, Cloudflare objects made once, DNS con
   const f = await fixture();
   try {
     const op = await f.login("op@example.test");
-    await op.send("put", "/answers", { hasDomain: true, canRouter: false });
+    await op.send("post", "/start");
     assert.equal((await op.send("put", "/cf-token", { token: GOOD })).status, 400); // domain first
     let v = (await op.send("put", "/form", { domain: "safety.example.test" })).body;
     assert.deepEqual(v.steps.map((s: { id: string }) => s.id), ["domain", "cf-token", "cf-provision", "cloudflared"]);
@@ -199,7 +204,8 @@ test("wizard: firewall and cloudflared with one 'run as administrator' button (U
   const f = await fixture();
   try {
     const op = await f.login("op@example.test");
-    await op.send("put", "/answers", { hasDomain: true, canRouter: true });
+    await op.send("post", "/start");
+    await op.send("put", "/form", { chosen: "direct" });
     let v = (await op.send("put", "/form", { domain: "safety.example.test" })).body;
     assert.deepEqual([step(v, "firewall").action, step(v, "firewall").command], ["uac-firewall", ELEVATED.firewall], "the command is on screen before it runs");
     // declined at the Windows prompt
@@ -222,7 +228,8 @@ test("wizard: firewall and cloudflared with one 'run as administrator' button (U
   const linux = await fixture(undefined, { platform: "linux" });
   try {
     const op = await linux.login("op@example.test");
-    await op.send("put", "/answers", { hasDomain: true, canRouter: true });
+    await op.send("post", "/start");
+    await op.send("put", "/form", { chosen: "direct" });
     const v = (await op.send("put", "/form", { domain: "safety.example.test" })).body;
     assert.equal(step(v, "firewall").action, null);
     const r = await op.send("post", "/run", { step: "firewall" });
@@ -239,7 +246,8 @@ test("home status line and the 10-minute watch: DNS repaired after a new public 
     const status = async () => (await op.status()).body as { tone: string; step: string | null; line: string };
     assert.deepEqual(await status(), { tone: "off", step: null, line: "휴대폰에서도 쓰려면 도메인을 연결하세요." });
     assert.equal((await worker.status()).status, 403);
-    await op.send("put", "/answers", { hasDomain: true, canRouter: true });
+    await op.send("post", "/start");
+    await op.send("put", "/form", { chosen: "direct" });
     assert.equal((await status()).line, "도메인 연결을 마저 진행하세요.");
     // running as a direct connection
     savePublicSettings(f.db, secret, "op", { mode: "direct", domain: "safety.example.test", email: "o@example.test", agreeTos: true, tunnelToken: "" });
