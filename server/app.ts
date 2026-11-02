@@ -79,6 +79,7 @@ import { registerInspectionTemplates } from "./inspection-templates.js";
 import { seedDefaultTemplates } from "./default-templates.js";
 import { registerIncidents } from "./incidents.js";
 import { registerPermits } from "./permits.js";
+import { registerQualifications } from "./qualifications.js";
 import { registerInspectionRoutes } from "./inspections.js";
 import express, {
   type Request,
@@ -291,6 +292,7 @@ export async function createApp(db: Db, config: AppConfig) {
   registerEquipmentUseRoutes(app, db, { access, mutate });
   registerIncidents(app, db, { access, mutate });
   registerPermits(app, db, { access, mutate });
+  registerQualifications(app, db, { access, mutate });
   app.get("/api/sites", (req, res) =>
     res.json(
       db
