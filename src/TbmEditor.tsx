@@ -1,6 +1,6 @@
 import { TbmRiskReferenceView } from "./TbmRiskReferenceView";
 import { AiPolish } from "./AiDescriptionSuggest";
-import { ActionBar, Notice, PageHeader, Section, StatusChip, TechDetails } from "./ui";
+import { ActionBar, EmptyState, Notice, PageHeader, Section, StatusChip, TechDetails } from "./ui";
 import { TbmRiskReferencePicker } from "./TbmRiskReferencePicker";
 import { useEffect, useRef, useState } from "react";
 import { api, type Site, type User } from "./api";
@@ -22,6 +22,7 @@ export function TbmEditor({
   site,
   user,
   initial,
+  onGoRoster,
   onDirtyChange,
   onBusyChange,
   onClose,
@@ -31,6 +32,7 @@ export function TbmEditor({
   site: Site;
   user: User;
   initial: TbmFull | null;
+  onGoRoster?: () => void;
   onDirtyChange: (value: boolean) => void;
   onBusyChange: (value: boolean) => void;
   onClose: () => void;
@@ -59,6 +61,12 @@ export function TbmEditor({
   const dirty = detailsDirty || referenceDirty;
   const allBusy = busy || referenceBusy;
   const writable = site.role !== "viewer" && record?.status !== "finalized";
+  // The roster is empty: nothing to pick, so point at the roster screen instead of a search box and paging.
+  const rosterEmpty = !workersLoading && !search && offset === 0 && workers.length === 0;
+  function finalize() {
+    if (window.confirm("관리자로서 기록을 확정할까요? 신원/서명/법정 이수 인증이 아니며 원본은 수정할 수 없습니다."))
+      void mutate("/finalize", "POST", { acknowledgeHistoricalSource: historicalConfirm });
+  }
   // 오프라인 2단계: device draft of the TBM details, one automatic save when the connection returns.
   const offline = useOfflineDraft(`tbm:${site.id}:${record?.id ?? "new"}`, form, record?.body || initialEmpty.current, writable, () => void save());
   const participants =
@@ -328,6 +336,9 @@ export function TbmEditor({
             <button disabled={allBusy || (!dirty && !!record)}>
               TBM 초안 저장
             </button>
+            {record?.status === "draft" && site.role === "manager" && (
+              <button type="button" disabled={allBusy || dirty} onClick={finalize}>관리자가 기록 확정</button>
+            )}
             {offline.waiting && <p role="status">통신이 끊겨 저장하지 못했습니다. 연결되면 자동으로 다시 저장합니다.</p>}
           </ActionBar>
         ) : (
@@ -339,7 +350,10 @@ export function TbmEditor({
           <Section no={3} level={3} title={`참가 대상 · ${participants.length}명`} aside={
             <button className="secondary" disabled={allBusy || dirty} onClick={()=>void openLinked(record.id)}>최신 저장본 다시 열기</button>
           }>
+          <details className="advanced-tools">
+            <summary>참여 링크 · QR</summary>
           <TbmInvitations key={record.id + ":" + record.version} path={`/sites/${site.id}/tbm/${record.id}/invitations`} draft={record.status === "draft"} writable={writable} />
+          </details>
           <Notice summary="명부에서 추가하면 미확인으로 시작합니다.">
             명부 추가 시 항상 미확인으로 시작합니다. 출역/다른 기록의 참여
             상태는 가져오지 않습니다.
@@ -401,6 +415,9 @@ export function TbmEditor({
               <button type="button" className="secondary" disabled={allBusy || dirty} onClick={() => void copyPreviousParticipants()}>
                 지난 TBM 참가자 불러오기
               </button>
+              {rosterEmpty ? (
+                <EmptyState title="명부가 비어 있습니다">명부를 등록하면 여기서 참가 대상을 고릅니다.{onGoRoster && <button type="button" onClick={onGoRoster}>명부 등록하러 가기</button>}</EmptyState>
+              ) : (<>
               <label>
                 TBM 명부 검색
                 <input
@@ -458,6 +475,7 @@ export function TbmEditor({
                   다음 50
                 </button>
               </div>
+              </>)}
               {dirty && (
                 <p className="muted">
                   참가 기록 변경 전에 초안 입력을 저장하세요.
@@ -469,12 +487,15 @@ export function TbmEditor({
             {participants.map((p) => <p key={p.worker_id}>{p.name} · 명부 ID {p.worker_id} · 기록 계정 ID {p.recorded_by || "없음"}</p>)}
           </TechDetails>
           </Section>
+          <details className="advanced-tools" open={!!record.riskReference}>
+            <summary>위험성평가 참조</summary>
           <Section level={3} title="위험성평가 참조">
           <TbmRiskReferenceView reference={record.riskReference ?? null} sourceHasSuccessor={record.riskSourceState?.sourceHasSuccessor} historicalAtFinalization={record.snapshot?.body.schemaVersion===2 && !!record.snapshot.body.riskReference?.sourceHasSuccessorAtFinalization}/>
           {record.riskReference && <button disabled={allBusy || dirty} onClick={async()=>{setBusy(true);setError("");try{setFixedSource(await api(`/sites/${site.id}/tbm/${record.id}/risk-reference/source`));}catch(e){setError((e as Error).message);}finally{setBusy(false);}}}>고정 평가 전체 원문 보기</button>}
           {fixedSource!==null && <pre className="risk-publication-source">{JSON.stringify(fixedSource,null,2)}</pre>}
           {writable && site.role==="manager" && <TbmRiskReferencePicker key={record.id+":"+record.version} siteId={site.id} disabled={busy||detailsDirty} onDirtyChange={setReferenceDirty} onBusyChange={setReferenceBusy} onSave={source=>void mutate("/risk-reference","PUT",{source})}/>}
           </Section>
+          </details>
           {record.status === "draft" && site.role === "manager" && (
             <Section no={4} level={3} title="관리자 기록 확정">
               {record.riskSourceState?.sourceHasSuccessor && <label><input type="checkbox" checked={historicalConfirm} disabled={allBusy||dirty} onChange={e=>setHistoricalConfirm(e.target.checked)}/>후속 평가가 있음을 확인하고 이 TBM에는 당시 고정 출처를 사용합니다. 안전 판단이 아닙니다.</label>}
@@ -483,19 +504,7 @@ export function TbmEditor({
                 이상, 미확인 0명. 확정 후 원본 수정은 불가하며 사유가 있는 정정
                 초안만 만들 수 있습니다.
               </Notice>
-              <button
-                disabled={allBusy || dirty}
-                onClick={() => {
-                  if (
-                    window.confirm(
-                      "관리자로서 기록을 확정할까요? 신원/서명/법정 이수 인증이 아니며 원본은 수정할 수 없습니다.",
-                    )
-                  )
-                    void mutate("/finalize", "POST", {acknowledgeHistoricalSource:historicalConfirm});
-                }}
-              >
-                관리자가 기록 확정
-              </button>
+              <p className="muted">확정 버튼은 아래 저장 바에 있습니다.</p>
             </Section>
           )}
           {record.snapshot && (

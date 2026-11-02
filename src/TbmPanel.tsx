@@ -8,12 +8,14 @@ export function TbmPanel({
   site,
   openId,
   user,
+  onNavigate,
   onDirtyChange,
   onBusyChange,
 }: {
   site: Site;
   openId?: string;
   user: User;
+  onNavigate?: (tab: string) => void;
   onDirtyChange: (dirty: boolean) => void;
   onBusyChange: (busy: boolean) => void;
 }) {
@@ -79,6 +81,7 @@ export function TbmPanel({
         site={site}
         user={user}
         initial={open.record}
+        onGoRoster={onNavigate && (() => onNavigate("attendance"))}
         onDirtyChange={onDirtyChange}
         onBusyChange={onBusyChange}
         onClose={() => {

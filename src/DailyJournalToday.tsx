@@ -30,7 +30,7 @@ export function DailyJournalToday({ siteId, date }: { siteId: string; date: stri
   }, [siteId, date]);
   return (
     <>
-      <Section no={1} level={3} title={`오늘 현장 요약 (${date || "날짜 선택"})`}>
+      <Section no={2} level={3} title={`오늘 현장 요약 (${date || "날짜 선택"})`}>
         {error && <p role="alert">{error} 요약을 불러오지 못해도 일지 입력은 계속할 수 있습니다.</p>}
         {!date ? <p>일지 날짜를 고르면 요약합니다.</p> : !counts ? !error && <p>조회 중</p> : (
           <ul>
@@ -40,7 +40,7 @@ export function DailyJournalToday({ siteId, date }: { siteId: string; date: stri
         )}
       </Section>
       {counts && (
-        <Section no={2} level={3} title="미완료 확인">
+        <Section no={3} level={3} title="미완료 확인">
           <ul>
             <li>예정일이 지났는데 수락되지 않은 점검 일정 {counts.elapsed}건 (자체 양식 · 점검에서 처리)</li>
             <li>기한이 지난 회의 후속조치 {counts.followupsLate}건{counts.followupsMore ? " 이상" : ""}, 이 날짜 기한 {counts.followupsToday}건 (회의록 후속조치 보드에서 처리)</li>
