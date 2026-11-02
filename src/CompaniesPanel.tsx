@@ -103,7 +103,7 @@ export function CompaniesPanel({
         ) : (
           page.items.map((c) => (
             <button key={c.id} disabled={busy} onClick={() => choose(c)}>
-              {c.name} · {c.active ? "활성" : "비활성"} · {c.id}
+              {c.name} · {c.active ? "활성" : "비활성"}
             </button>
           ))
         )}

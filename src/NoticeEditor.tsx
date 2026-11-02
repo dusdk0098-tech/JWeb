@@ -139,7 +139,7 @@ export function NoticeEditor({
     <section className="panel">
       <div className="section-head">
         <h1>
-          현장 계정 공지 · {record ? noticeStatus[record.status] : "새 초안"}
+          공지 · {record ? noticeStatus[record.status] : "새 초안"}
         </h1>
         <button
           className="secondary"

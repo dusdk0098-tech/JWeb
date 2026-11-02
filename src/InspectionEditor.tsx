@@ -333,8 +333,7 @@ export function InspectionEditor({
           <h2>관리자 검토</h2>
           <Notice summary="제출한 사람이 아닌 다른 관리자가 검토합니다.">
             잠정 업무 정책: 원 제출 계정이 아닌 현장 관리자가 검토합니다.
-            제출자가 관리자이면 다른 관리자 1명이 필요합니다. 현장 설정에서 기존
-            계정을 관리자로 지정하세요. 법적 의무를 뜻하지 않습니다.
+            관리자가 1명뿐인 현장에서는 본인 처리로 기록되고 화면에 그렇게 표시됩니다. 법적 의무를 뜻하지 않습니다.
           </Notice>
           {record.owner_id === user.id && !soleManagerOf(site) ? (
             <p className="notice">

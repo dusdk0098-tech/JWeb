@@ -81,7 +81,7 @@ export function Minutes({
                     </small>
                     <strong>{m.title}</strong>
                     <small>
-                      {m.location} · 버전 {m.version} · {m.status === "finalized" ? "관리자 기록 확정" : "초안"}{m.parentId ? " · 정정본" : ""}{m.successorId ? " · 후속 정정본 있음" : ""}
+                      {m.location} · {m.status === "finalized" ? "관리자 기록 확정" : "초안"}{m.parentId ? " · 정정본" : ""}{m.successorId ? " · 후속 정정본 있음" : ""}
                     </small>
                   </span>
                   <span>열기 →</span>

@@ -150,10 +150,7 @@ export function EducationPanel({
                         : "관리자가 기록 보관 확정"}
                     </small>
                     <strong>{r.body.title}</strong>
-                    <small>
-                      버전 {r.version}
-                      {r.parent_id ? " · 정정본" : ""}
-                    </small>
+                    {r.parent_id && <small>정정본</small>}
                   </span>
                   <span>열기 →</span>
                 </button>

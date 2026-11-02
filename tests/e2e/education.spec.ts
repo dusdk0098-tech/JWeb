@@ -95,7 +95,7 @@ test("own education journal manual minutes and immutable record archive", async 
     .getByRole("button", { name: "정정 초안 생성", exact: true })
     .click();
   await expect(
-    page.getByRole("heading", { name: "수기 교육일지 · 초안", exact: true }),
+    page.getByRole("heading", { name: "교육일지 · 초안", exact: true }),
   ).toBeVisible();
   await expect(page.getByText(/미입력 · 0분/)).toBeVisible();
 });

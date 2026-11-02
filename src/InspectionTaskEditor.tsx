@@ -232,7 +232,7 @@ export function InspectionTaskEditor({
       <p className="notice">
         일정은 수기 계획, 초안 시작은 배정 계정의 명시적 행위입니다. 날짜 경과를
         위험/위법 판정으로 사용하지 않습니다. 본인 제출 점검은 다른 관리자가
-        검토해야 합니다. 자동 예외 없음.
+        검토합니다. 관리자가 1명뿐인 현장에서는 본인 처리로 기록되고 화면에 그렇게 표시됩니다.
       </p>
       {error && (
         <p role="alert" className="error">

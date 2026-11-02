@@ -398,7 +398,7 @@ export function RiskAssessmentEditor({
             }
             onClick={() => save()}
           >
-            초안 저장·방법별 입력 검증
+            초안 저장
           </button>
           </ActionBar>
         </>
