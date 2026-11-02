@@ -36,8 +36,8 @@ export function CostEvidenceRequest({ siteId, periodId }: { siteId: string; peri
       {page.rows.map(row => <label key={row.id}><input type="checkbox" disabled={busy} checked={selected.includes(row.id)} onChange={e => { setDraft(null); setSelected(e.target.checked ? [...selected, row.id] : selected.filter(id => id !== row.id)); }} />
         {row.spendDate} · {row.description} · {row.amount}원 · {row.status} · {row.id} v{row.version} · {row.reasons.map(x => ({ no_link: "미연결", changed_link: "연결 뒤 변경", cancelled_link: "취소행 연결" })[x]).join(" / ")}</label>)}
       {!page.rows.length && <p>이 페이지에 확인 후보가 없습니다. 증빙 적격성을 확인했다는 뜻이 아닙니다.</p>}
-      <button disabled={busy || page.offset === 0} onClick={() => void run(() => load(page.offset - 50))}>이전</button>
-      <button disabled={busy || !page.hasMore} onClick={() => void run(() => load(page.offset + 50))}>다음</button>
+      <button disabled={busy || page.offset === 0} onClick={() => void run(() => load(page.offset - 50))}>이전 50</button>
+      <button disabled={busy || !page.hasMore} onClick={() => void run(() => load(page.offset + 50))}>다음 50</button>
       <button disabled={busy || !selected.length} onClick={() => void run(create)}>선택 {selected.length}개로 내부 초안 생성</button></>}
     {draft && <><p>생성 당시 지문: {draft.fingerprint}. 생성/복사는 발송·수신·읽음 기록이 아닙니다. 아래 내용을 검토하고 직접 선택하여 복사하세요.</p>
       <label>확인 요청 평문<textarea readOnly rows={12} value={draft.text} /></label>

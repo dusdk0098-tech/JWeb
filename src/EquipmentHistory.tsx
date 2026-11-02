@@ -75,13 +75,13 @@ export function EquipmentHistory({
         disabled={loading || offset === 0}
         onClick={() => setOffset(offset - 50)}
       >
-        이력 이전
+        이전 50
       </button>
       <button
         disabled={loading || !page.hasMore}
         onClick={() => setOffset(offset + 50)}
       >
-        이력 다음
+        다음 50
       </button>
     </section>
   );

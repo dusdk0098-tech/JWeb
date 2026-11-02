@@ -94,13 +94,13 @@ export function NoticeRecipients({
         disabled={loading || !offset}
         onClick={() => setOffset(offset - 50)}
       >
-        계정 이전
+        이전 50
       </button>
       <button
         disabled={loading || !page.hasMore}
         onClick={() => setOffset(offset + 50)}
       >
-        계정 다음
+        다음 50
       </button>
     </fieldset>
   );

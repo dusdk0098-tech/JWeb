@@ -131,6 +131,8 @@ export function DailyJournalPanel({
         현장·선택 날짜별 최초 일지 하나, 보관 이후 정정은 새 초안입니다.
         작업/순찰 기록은 실제 안전·고용/임금·법적 승인이나 서명이 아닙니다.
       </Notice>
+      <details className="filter-fold" open={!!(items.items.length || date || toDate || status || query || loading)}>
+        <summary>검색 조건</summary>
       <div className="filter-bar">
         <label>
           일지 날짜 시작
@@ -161,6 +163,7 @@ export function DailyJournalPanel({
           검색 조건 초기화
         </button>
       </div>
+      </details>
       {error && (
         <p role="alert" className="error">
           {error}

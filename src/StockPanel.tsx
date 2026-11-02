@@ -160,13 +160,13 @@ export function StockPanel({
             disabled={busy || loading || offset === 0}
             onClick={() => setOffset((v) => v - 50)}
           >
-            이전
+            이전 50
           </button>
           <button
             disabled={busy || loading || !page.hasMore}
             onClick={() => setOffset((v) => v + 50)}
           >
-            다음
+            다음 50
           </button>
         </>
       )}

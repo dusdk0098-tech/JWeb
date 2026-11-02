@@ -289,7 +289,7 @@ export function AttendancePanel({
           disabled={loading || offset === 0 || busy}
           onClick={() => setOffset(offset - 50)}
         >
-          출역 이전
+          이전 50
         </button>
         <span>{offset / 50 + 1} 페이지</span>
         <button
@@ -297,7 +297,7 @@ export function AttendancePanel({
           disabled={loading || !page.hasMore || busy}
           onClick={() => setOffset(offset + 50)}
         >
-          출역 다음
+          다음 50
         </button>
         <button
           className="secondary"
@@ -422,14 +422,14 @@ export function AttendancePanel({
               disabled={workerOffset === 0 || workerLoading}
               onClick={() => setWorkerOffset(workerOffset - 50)}
             >
-              대상 이전
+              이전 50
             </button>
             <button
               className="secondary"
               disabled={!workerMore || workerLoading}
               onClick={() => setWorkerOffset(workerOffset + 50)}
             >
-              대상 다음
+              다음 50
             </button>
           </div>
           <p>

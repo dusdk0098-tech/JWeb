@@ -448,14 +448,14 @@ export function TbmEditor({
                   disabled={workersLoading || offset === 0 || busy}
                   onClick={() => setOffset(offset - 50)}
                 >
-                  TBM 명부 이전
+                  이전 50
                 </button>
                 <button
                   className="secondary"
                   disabled={workersLoading || !more || busy}
                   onClick={() => setOffset(offset + 50)}
                 >
-                  TBM 명부 다음
+                  다음 50
                 </button>
               </div>
               {dirty && (

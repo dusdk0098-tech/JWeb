@@ -97,7 +97,7 @@ export function Minutes({
             disabled={busy || offset === 0}
             onClick={() => setOffset(offset - 50)}
           >
-            이전
+            이전 50
           </button>
           <span>{Math.floor(offset / 50) + 1} 페이지</span>
           <button
@@ -105,7 +105,7 @@ export function Minutes({
             disabled={busy || !more}
             onClick={() => setOffset(offset + 50)}
           >
-            다음
+            다음 50
           </button>
         </div>
       </section>

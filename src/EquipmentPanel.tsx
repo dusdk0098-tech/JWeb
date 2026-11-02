@@ -262,7 +262,7 @@ export function EquipmentPanel({
         disabled={busy || loading || offset === 0}
         onClick={() => setOffset(offset - 50)}
       >
-        이전
+        이전 50
       </button>
       <button
         disabled={
@@ -272,7 +272,7 @@ export function EquipmentPanel({
         }
         onClick={() => setOffset(offset + 50)}
       >
-        다음
+        다음 50
       </button>
     </>
   );

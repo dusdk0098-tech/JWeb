@@ -107,7 +107,7 @@ export function CostEvidence({ base, onClose, onDirtyChange, onBusyChange }: {
       </fieldset>}
     </>}
     {events && <section><h3>증빙 변경 이력</h3>{events.items.map(e => <details key={e.version}><summary>증빙 v{e.version} · {e.event} · {e.actor_name} · {e.at}</summary><p>{e.reason}</p><pre>{JSON.stringify(e.data,null,2)}</pre></details>)}
-      <button disabled={busy || loading || eventOffset === 0} onClick={() => setEventOffset(v => v - 20)}>최근 이력20개</button><button disabled={busy || loading || !events.hasMore} onClick={() => setEventOffset(v => v + 20)}>이전 20</button>
+      <button disabled={busy || loading || eventOffset === 0} onClick={() => setEventOffset(v => v - 20)}>다음 20</button><button disabled={busy || loading || !events.hasMore} onClick={() => setEventOffset(v => v + 20)}>이전 20</button>
     </section>}
   </section>;
 }

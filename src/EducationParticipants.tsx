@@ -154,13 +154,13 @@ export function EducationParticipants({
             disabled={loading || offset === 0 || !!candidate || !!selected}
             onClick={() => setOffset(offset - 50)}
           >
-            명부 이전
+            이전 50
           </button>
           <button
             disabled={loading || !more || !!candidate || !!selected}
             onClick={() => setOffset(offset + 50)}
           >
-            명부 다음
+            다음 50
           </button>
         </fieldset>
       )}

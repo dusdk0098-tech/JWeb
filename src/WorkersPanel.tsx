@@ -175,7 +175,7 @@ export function WorkersPanel({
           disabled={loading || offset === 0}
           onClick={() => setOffset(offset - 50)}
         >
-          명부 이전
+          이전 50
         </button>
         <span>{offset / 50 + 1} 페이지</span>
         <button
@@ -183,7 +183,7 @@ export function WorkersPanel({
           disabled={loading || !more}
           onClick={() => setOffset(offset + 50)}
         >
-          명부 다음
+          다음 50
         </button>
         <button
           className="secondary"
