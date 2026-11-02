@@ -313,7 +313,7 @@ export function MeetingEditor({
           </p>
         )}
       </form>
-      {saved?.status!=="finalized"&&saved&&site.role==="manager"&&<button disabled={busy||dirty} onClick={()=>{if(window.confirm("기록을 확정하면 원문을 수정할 수 없습니다. 전자서명이나 법적 인증이 아닙니다. 계속할까요?"))void command("/finalize",{confirmRecordOnly:true});}}>관리자 기록 확정</button>}
+      {saved?.status!=="finalized"&&saved&&site.role==="manager"&&<button disabled={busy||dirty} onClick={()=>{if(window.confirm("기록을 확정하면 원문을 수정할 수 없습니다. 전자서명이나 법적 인증이 아닙니다. 계속할까요?"))void command("/finalize",{confirmRecordOnly:true});}}>관리자가 기록 확정</button>}
       {saved?.status==="finalized"&&<section><TechDetails><p>고정 SHA-256: {saved.snapshot?.hash}</p></TechDetails><p>확정 계정: {saved.snapshot?.body.finalizedBy.name} · {saved.snapshot?.body.finalizedAt}</p>
         <button disabled={busy||!!revisionReason} onClick={()=>setTracking(true)}>이 회의의 별도 후속조치 기록</button>
         {saved.successorId ? <button disabled={busy} onClick={()=>void openLinked(saved.successorId!)}>연결된 정정본 보기</button> : site.role==="manager"&&<><label>정정 사유<input maxLength={1000} disabled={busy} value={revisionReason} onChange={e=>setRevisionReason(e.target.value)}/></label><button disabled={busy||!revisionReason.trim()} onClick={()=>void command("/revise",{reason:revisionReason})}>원문을 보존하고 정정 초안 만들기</button></>}

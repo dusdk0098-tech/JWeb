@@ -83,7 +83,7 @@ test("own education journal manual minutes and immutable record archive", async 
     .click();
   page.once("dialog", (d) => d.accept());
   await page
-    .getByRole("button", { name: "관리자 기록 보관 확정", exact: true })
+    .getByRole("button", { name: "관리자가 기록 확정", exact: true })
     .click();
   await expect(
     page.getByRole("heading", { name: "불변 보관본", exact: true }),

@@ -144,7 +144,7 @@ export function EducationEditor({
       <div className="section-head">
         <h1>
           교육일지 ·{" "}
-          {record?.status === "archived" ? "기록 보관 확정" : "초안"}
+          {record?.status === "archived" ? "확정" : "초안"}
         </h1>
         <button
           className="secondary"
@@ -324,7 +324,7 @@ export function EducationEditor({
               ) && run("archive")
             }
           >
-            관리자 기록 보관 확정
+            관리자가 기록 확정
           </button>
         </section>
       )}

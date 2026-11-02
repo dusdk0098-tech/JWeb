@@ -1,6 +1,6 @@
 import { test, expect } from "@playwright/test";
 import { randomUUID } from "node:crypto";
-// 편의 4·7·8: the first-run steps on the home, "지난 TBM 참가자 불러오기", and "참조 취합 후 보관" in one click.
+// 편의 4·7·8: the first-run steps on the home, "지난 TBM 참가자 불러오기", and "참조 취합 후 확정" in one click.
 test("first-run steps, previous-TBM roster copy, journal capture-and-archive", async ({ page }) => {
   await page.goto("/");
   await page.getByLabel("이메일", { exact: true }).fill("test@example.test");
@@ -52,6 +52,6 @@ test("first-run steps, previous-TBM roster copy, journal capture-and-archive", a
   await page.getByRole("button", { name: "일지 초안 저장", exact: true }).click();
   await expect(page.getByRole("status").last()).toHaveText("서버에 저장됨");
   page.once("dialog", (d) => d.accept());
-  await page.getByRole("button", { name: "참조 취합 후 보관", exact: true }).click();
+  await page.getByRole("button", { name: "참조 취합 후 확정", exact: true }).click();
   await expect(page.getByRole("heading", { name: "관리자가 보관한 안전업무일지", exact: true })).toBeVisible();
 });

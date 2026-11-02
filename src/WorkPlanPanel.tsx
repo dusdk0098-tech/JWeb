@@ -103,7 +103,7 @@ export function WorkPlanPanel({
               <h2>{r.body.title || "제목 없음"}</h2>
               <p>{r.body.date} {r.body.startTime}~{r.body.endTime}</p>
             </div>
-            {r.status === "archived" ? <StatusChip tone="done">확정 보관</StatusChip> : <StatusChip tone="draft">작성 중</StatusChip>}
+            {r.status === "archived" ? <StatusChip tone="done">확정</StatusChip> : <StatusChip tone="draft">작성 중</StatusChip>}
             <button className="secondary" disabled={busy} onClick={() => void view(r.id)}>
               작업계획 열기
             </button>

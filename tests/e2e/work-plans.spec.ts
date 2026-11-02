@@ -44,16 +44,16 @@ test("general work plan requires explicit source capture before manual archive",
     .getByRole("button", { name: "초안 저장", exact: true })
     .click();
   await expect(
-    page.getByRole("button", { name: "관리자가 기록 보관" }),
+    page.getByRole("button", { name: "관리자가 기록 확정" }),
   ).toBeDisabled();
   await page.getByRole("button", { name: "선택 참조 최신 정보 취합" }).click();
   await expect(
-    page.getByRole("button", { name: "관리자가 기록 보관" }),
+    page.getByRole("button", { name: "관리자가 기록 확정" }),
   ).toBeEnabled();
   page.once("dialog", (d) => d.accept());
-  await page.getByRole("button", { name: "관리자가 기록 보관" }).click();
+  await page.getByRole("button", { name: "관리자가 기록 확정" }).click();
   await expect(
-    page.getByRole("heading", { name: "관리자 기록 보관본 · 문서검토 없음", exact: true }),
+    page.getByRole("heading", { name: "관리자 확정본 · 문서검토 없음", exact: true }),
   ).toBeVisible();
   await expect(page.getByText(/작업허가\/공학 검토\/안전 인증/)).toBeVisible();
 });
