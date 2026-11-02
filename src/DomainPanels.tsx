@@ -16,6 +16,9 @@ export const CompanyPpePanel = deferredPanel<
 export const WorkStopPanel = deferredPanel<
   ComponentProps<(typeof import("./WorkStopPanel"))["WorkStopPanel"]>
 >(() => import("./WorkStopPanel").then((m) => ({ default: m.WorkStopPanel })));
+export const IncidentsPanel = deferredPanel<
+  ComponentProps<(typeof import("./IncidentsPanel"))["IncidentsPanel"]>
+>(() => import("./IncidentsPanel").then((m) => ({ default: m.IncidentsPanel })));
 export const ManagerOverview = deferredPanel<
   ComponentProps<(typeof import("./ManagerOverview"))["ManagerOverview"]>
 >(() =>
