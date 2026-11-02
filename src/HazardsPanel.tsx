@@ -1,6 +1,6 @@
 import { HazardInboxPanel } from "./HazardInboxPanel";
 import { matchesFind, Notice, PageFind, PageHeader } from "./ui";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { api, type Site, type User } from "./api";
 import type { Page } from "./attendance-types";
 import {
@@ -11,11 +11,13 @@ import {
 import { HazardEditor } from "./HazardEditor";
 export function HazardsPanel({
   site,
+  openId,
   user,
   onDirtyChange,
   onBusyChange,
 }: {
   site: Site;
+  openId?: string;
   user: User;
   onDirtyChange: (v: boolean) => void;
   onBusyChange: (v: boolean) => void;
@@ -76,6 +78,9 @@ export function HazardsPanel({
       onBusyChange(false);
     }
   }
+  // 검토 F15: the home screen names a record to open
+  const openedFromHome = useRef<string | null>(null);
+  useEffect(() => { if (openId && openedFromHome.current !== openId) { openedFromHome.current = openId; void view(openId); } }, [openId]);
   if (open)
     return (
       <HazardEditor

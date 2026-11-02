@@ -5,14 +5,16 @@ import { WorkersPanel } from "./WorkersPanel";
 import { AttendancePanel } from "./AttendancePanel";
 export function WorkersAttendance({
   site,
+  initialTab,
   onDirtyChange,
   onBusyChange,
 }: {
   site: Site;
+  initialTab?: "attendance" | "workers";
   onDirtyChange: (dirty: boolean) => void;
   onBusyChange: (busy: boolean) => void;
 }) {
-  const [tab, setTab] = useState<"attendance" | "workers">("attendance");
+  const [tab, setTab] = useState<"attendance" | "workers">(initialTab ?? "attendance");
   const [dirty, setDirty] = useState(false),
     [busy, setBusy] = useState(false);
   const updateDirty = useCallback(

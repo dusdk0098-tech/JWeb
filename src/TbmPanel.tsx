@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { EmptyState, Notice, PageHeader, StatusChip } from "./ui";
 import { api, type Site, type User } from "./api";
 import type { TbmSession, TbmFull } from "./tbm-types";
@@ -6,11 +6,13 @@ import type { Page } from "./attendance-types";
 import { TbmEditor } from "./TbmEditor";
 export function TbmPanel({
   site,
+  openId,
   user,
   onDirtyChange,
   onBusyChange,
 }: {
   site: Site;
+  openId?: string;
   user: User;
   onDirtyChange: (dirty: boolean) => void;
   onBusyChange: (busy: boolean) => void;
@@ -67,6 +69,9 @@ export function TbmPanel({
       onBusyChange(false);
     }
   }
+  // 검토 F15: the home screen names a record to open
+  const openedFromHome = useRef<string | null>(null);
+  useEffect(() => { if (openId && openedFromHome.current !== openId) { openedFromHome.current = openId; void openRecord(openId); } }, [openId]);
   if (open)
     return (
       <TbmEditor

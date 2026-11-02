@@ -48,6 +48,8 @@ function App() {
     [flags, setFlags] = useState({ operator: false, issuer: false, local: false }); // account-issuance rights from /session
   const userRef = useRef(user);
   userRef.current = user;
+  // 검토 F15·F2: what the home screen asked a screen to open (a record, or the roster tab); cleared on any other navigation
+  const [focus, setFocus] = useState<{ id?: string; sub?: string } | null>(null);
   const [attendanceDirty, setAttendanceDirty] = useState(false);
   const [attendanceBusy, setAttendanceBusy] = useState(false);
   function mayLeaveAttendance() {
@@ -153,6 +155,7 @@ function App() {
       onSelectTab={(id) => {
         if (id !== tab && !mayLeaveAttendance()) return;
         setTab(id);
+        setFocus(null);
         setError("");
       }}
       onLogout={logout}
@@ -189,11 +192,12 @@ function App() {
               if (!helpDestinationAllowed(next, site?.role)) return;
               if (editor || !mayLeaveAttendance()) return;
               setTab(next);
+              setFocus(null);
               setError("");
             }}
           />
         ) : tab === "home" ? (
-          <Home site={site} user={user} ads={ads} operatorLocal={flags.operator && flags.local} onOpen={(next) => { if (!mayLeaveAttendance()) return; setTab(next); setError(""); }} />
+          <Home site={site} user={user} ads={ads} operatorLocal={flags.operator && flags.local} onOpen={(next, f) => { if (!mayLeaveAttendance()) return; setTab(next); setFocus(f ?? null); setError(""); }} />
         ) : tab === "ai" ? (
           <AiSettings />
         ) : tab === "public" ? (
@@ -251,6 +255,7 @@ function App() {
           <DailyJournalPanel
             key={site.id}
             site={site}
+            openId={focus?.id}
             user={user}
             onDirtyChange={setAttendanceDirty}
             onBusyChange={setAttendanceBusy}
@@ -259,6 +264,7 @@ function App() {
           <WorkPlanPanel
             key={site.id}
             site={site}
+            openId={focus?.id}
             user={user}
             onDirtyChange={setAttendanceDirty}
             onBusyChange={setAttendanceBusy}
@@ -290,6 +296,7 @@ function App() {
           <InspectionsPanel
             key={site.id}
             site={site}
+            openId={focus?.id}
             user={user}
             onDirtyChange={setAttendanceDirty}
             onBusyChange={setAttendanceBusy}
@@ -321,6 +328,7 @@ function App() {
           <HazardsPanel
             key={site.id}
             site={site}
+            openId={focus?.id}
             user={user}
             onDirtyChange={setAttendanceDirty}
             onBusyChange={setAttendanceBusy}
@@ -329,6 +337,7 @@ function App() {
           <TbmPanel
             key={site.id}
             site={site}
+            openId={focus?.id}
             user={user}
             onDirtyChange={setAttendanceDirty}
             onBusyChange={setAttendanceBusy}
@@ -337,6 +346,7 @@ function App() {
           <WorkersAttendance
             key={site.id}
             site={site}
+            initialTab={focus?.sub === "workers" ? "workers" : undefined}
             onDirtyChange={setAttendanceDirty}
             onBusyChange={setAttendanceBusy}
           />

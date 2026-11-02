@@ -1,4 +1,4 @@
-import {useEffect,useState} from "react";
+import { useEffect, useState, useRef } from "react";
 import { EmptyState, Notice, PageHeader, StatusChip } from "./ui";
 import {api,type Site,type User} from "./api";
 import {InspectionTasksPanel} from "./InspectionTasksPanel";
@@ -8,7 +8,7 @@ import {inspectionStatus,type Inspection,type InspectionTemplate} from "./inspec
 import type {TemplateRegisterPage,InspectionRegisterPage} from "./inspection-workflow-types";
 import type {InspectionUseState} from "./InspectionUseNotice";
 type Open={kind:"tasks";template?:InspectionTemplate}|{kind:"template";record:InspectionTemplate|null}|{kind:"inspection";record:Inspection|null;template?:InspectionTemplate};
-export function InspectionsPanel({site,user,onDirtyChange,onBusyChange}:{site:Site;user:User;onDirtyChange:(v:boolean)=>void;onBusyChange:(v:boolean)=>void}){
+export function InspectionsPanel({site,user,onDirtyChange,onBusyChange,openId}:{site:Site;user:User;onDirtyChange:(v:boolean)=>void;onBusyChange:(v:boolean)=>void;openId?:string}){
  const [tab,setTab]=useState<"records"|"templates">("records"),[offset,setOffset]=useState(0),[tick,setTick]=useState(0),[keyword,setKeyword]=useState(""),[status,setStatus]=useState(""),[work,setWork]=useState("all"),[history,setHistory]=useState("current"),[useFilter,setUseFilter]=useState("all"),[from,setFrom]=useState(""),[to,setTo]=useState("");
  const [templates,setTemplates]=useState<TemplateRegisterPage>({items:[],total:0,hasMore:false}),[records,setRecords]=useState<InspectionRegisterPage>({items:[],total:0,hasMore:false}),[open,setOpen]=useState<Open|null>(null),[loading,setLoading]=useState(true),[busy,setBusy]=useState(false),[error,setError]=useState("");
  useEffect(()=>{let live=true;setLoading(true);setError("");const params=new URLSearchParams({offset:String(offset),keyword,...(status?{status}:{}),...(tab==="templates"?{use:useFilter}:{work,history,...(from?{from}:{}),...(to?{to}:{})})});
@@ -17,6 +17,9 @@ export function InspectionsPanel({site,user,onDirtyChange,onBusyChange}:{site:Si
  useEffect(()=>()=>{onDirtyChange(false);onBusyChange(false);},[onDirtyChange,onBusyChange]);
  async function view(id:string){if(busy)return;setBusy(true);onBusyChange(true);setError("");try{if(tab==="templates")setOpen({kind:"template",record:await api<InspectionTemplate>(`/sites/${site.id}/inspection-templates/${id}`)});else setOpen({kind:"inspection",record:await api<Inspection>(`/sites/${site.id}/inspections/${id}`)});}catch(e){setError((e as Error).message);}finally{setBusy(false);onBusyChange(false);}}
  async function choose(id:string,scheduled:boolean){if(busy)return;setBusy(true);onBusyChange(true);setError("");try{const path=`/sites/${site.id}/inspection-templates/${id}`,[template,use]=await Promise.all([api<InspectionTemplate>(path),api<InspectionUseState>(path+"/use-status")]);if(template.status!=="published"||use.useStopped||!use.sourceHash)throw new Error("신규사용 가능한 게시본을 다시 선택하세요.");const selected={...template,selectionHash:use.sourceHash};setOpen(scheduled?{kind:"tasks",template:selected}:{kind:"inspection",record:null,template:selected});}catch(e){setError((e as Error).message);}finally{setBusy(false);onBusyChange(false);}}
+ // 검토 F15: the home screen names a record to open
+ const openedFromHome=useRef<string|null>(null);
+ useEffect(()=>{if(openId&&openedFromHome.current!==openId){openedFromHome.current=openId;void view(openId);}},[openId]);
  const common={site,onDirtyChange,onBusyChange,onClose:()=>{setOpen(null);setTick(t=>t+1);}};
  if(open?.kind==="tasks")return <InspectionTasksPanel {...common} user={user} initialTemplate={open.template}/>;
  if(open?.kind==="template")return <InspectionTemplateEditor key={open.record?.id||"new-template"} {...common} initial={open.record}/>;
