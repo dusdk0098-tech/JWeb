@@ -96,7 +96,7 @@ test("all shared mutation callsites declare an explicit synchronous authorizatio
   }
   assert.equal(
     count,
-    173, // 계정 발급(운영자 발급·초기화·권한, 현장 관리자 발급·초기화); SC 사진대지 순서; 작업계획 장비 계산(P-02); Phase69 education upload + attach-state; SC 현장 설정 PUT; SC 사진대지 표시본·항목; 교육내용 검수 기록; 사진 보드 생성·저장·사진·표시본; TBM 참여 링크 발급·폐기, 본인 확인값; 작업계획 양식 체크리스트; 현장 자료실 올리기·게시 중지.
+    178, // 사고·아차사고 기록(작성·수정·확정·조사표 제출일·정정); 계정 발급(운영자 발급·초기화·권한, 현장 관리자 발급·초기화); SC 사진대지 순서; 작업계획 장비 계산(P-02); Phase69 education upload + attach-state; SC 현장 설정 PUT; SC 사진대지 표시본·항목; 교육내용 검수 기록; 사진 보드 생성·저장·사진·표시본; TBM 참여 링크 발급·폐기, 본인 확인값; 작업계획 양식 체크리스트; 현장 자료실 올리기·게시 중지.
     "Re-inventory changed mutation routes; this is a callsite count, not route coverage percentage.",
   );
 });

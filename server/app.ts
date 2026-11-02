@@ -77,6 +77,7 @@ import { registerEducationRoutes } from "./education.js";
 import { registerInspectionLinkRoutes } from "./inspection-links.js";
 import { registerInspectionTemplates } from "./inspection-templates.js";
 import { seedDefaultTemplates } from "./default-templates.js";
+import { registerIncidents } from "./incidents.js";
 import { registerInspectionRoutes } from "./inspections.js";
 import express, {
   type Request,
@@ -287,6 +288,7 @@ export async function createApp(db: Db, config: AppConfig) {
   registerNoticeRoutes(app, db, { access, mutate });
   registerEquipmentRoutes(app, db, { access, mutate });
   registerEquipmentUseRoutes(app, db, { access, mutate });
+  registerIncidents(app, db, { access, mutate });
   app.get("/api/sites", (req, res) =>
     res.json(
       db

@@ -24,7 +24,7 @@ function PublicStatusLine({ onOpen }: { onOpen: (tab: string) => void }) {
 }
 type Focus = { id?: string; sub?: string };
 // Tasks whose id is a record the target screen can open directly (the others open the screen).
-const OPENS_RECORD = new Set(["신고 조치", "신고 검토", "점검 검토"]);
+const OPENS_RECORD = new Set(["신고 조치", "신고 검토", "점검 검토", "조사표 제출"]);
 export function Home({ site, user, ads, operatorLocal, onOpen }: { site: Site | undefined; user: User; ads?: boolean; operatorLocal?: boolean; onOpen: (tab: string, focus?: Focus) => void }) {
   const [data, setData] = useState<Data | null>(null), [error, setError] = useState(""), [adList, setAdList] = useState<Ad[]>([]);
   useEffect(() => {
@@ -50,11 +50,13 @@ export function Home({ site, user, ads, operatorLocal, onOpen }: { site: Site | 
       list<{ id: string; title: string; date: string; location: string }>("/inspection-register?work=reviewable", manager),
       list<{ id: string; due: string; source: { title: string; action: { task: string } } }>("/minutes-followups?mine=1&open=1"),
       list<{ id: string }>("/workers?active=true"),
+      list<{ id: string; title: string; due: string }>("/incident-tasks", manager),
       manager ? api<unknown[]>(base + "/members").catch(() => null) : Promise.resolve(null),
     ])
-      .then(([journals, tbm, plans, inspections, periods, hazardsMine, hazardReviews, riskActions, publications, riskReviews, inspectionStarts, inspectionReviews, followups, workers, members]) => {
+      .then(([journals, tbm, plans, inspections, periods, hazardsMine, hazardReviews, riskActions, publications, riskReviews, inspectionStarts, inspectionReviews, followups, workers, incidentReports, members]) => {
         if (!active) return;
         const tasks = [
+          ...task("조사표 제출", "incidents", false)(incidentReports, (r) => `산업재해조사표 · ${r.title}`, (r) => r.due),
           ...task("신고 조치", "hazards", false)(hazardsMine, (r) => `${r.title} · ${r.stateLabel}`, (r) => r.dueDate),
           ...task("위험성평가 조치", "riskcore", false)(riskActions, (r) => r.task ? `${r.title} · ${r.task}` : r.title, (r) => r.due),
           ...task("점검 일정", "inspections", false)(inspectionStarts, (r) => `${r.title} · ${r.location}`, (r) => r.plannedDate),
