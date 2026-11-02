@@ -88,13 +88,13 @@ export function CostHistory({ base, tick, disabled=false }: { base: string; tick
         disabled={loading || offset === 0}
         onClick={() => setOffset((v) => v - 50)}
       >
-        이전
+        이전 50
       </button>
       <button
         disabled={loading || !page.hasMore}
         onClick={() => setOffset((v) => v + 50)}
       >
-        다음
+        다음 50
       </button>
     </section>
   );

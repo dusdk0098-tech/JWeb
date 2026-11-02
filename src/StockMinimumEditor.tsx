@@ -51,6 +51,6 @@ export function StockMinimumEditor({ base, onClose, onDirtyChange, onBusyChange 
     {history && <><h3>설정 이력 (최근순)</h3>{history.items.map(r => <article key={r.snapshot.id}>
       <p>v{r.snapshot.version} · {r.snapshot.enabled ? `${r.snapshot.minimum} ${r.snapshot.item.unit}` : "해제"} · 당시 품목 {r.snapshot.item.name}</p>
       <p>{r.snapshot.reason} · {r.snapshot.actor.name} · {r.snapshot.at}</p><details><summary>고정 설정 해시</summary>{r.hash}</details>
-    </article>)}<button disabled={busy || loading || editing || offset === 0} onClick={() => setOffset(v => Math.max(0, v - 50))}>최근 50개</button><button disabled={busy || loading || editing || !history.hasMore} onClick={() => setOffset(v => v + 50)}>이전 50</button></>}
+    </article>)}<button disabled={busy || loading || editing || offset === 0} onClick={() => setOffset(v => Math.max(0, v - 50))}>다음 50</button><button disabled={busy || loading || editing || !history.hasMore} onClick={() => setOffset(v => v + 50)}>이전 50</button></>}
   </section>;
 }

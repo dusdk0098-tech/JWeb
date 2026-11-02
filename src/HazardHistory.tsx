@@ -97,7 +97,7 @@ export function HazardHistory({
           disabled={loading || offset === 0}
           onClick={() => setOffset(offset - 50)}
         >
-          이력 이전
+          이전 50
         </button>
         <span>{offset / 50 + 1} 페이지</span>
         <button
@@ -105,7 +105,7 @@ export function HazardHistory({
           disabled={loading || !page.hasMore}
           onClick={() => setOffset(offset + 50)}
         >
-          이력 다음
+          다음 50
         </button>
       </div>
     </section>

@@ -1084,3 +1084,5 @@ button.secondary[aria-pressed="true"] { background: var(--primary-soft); border-
 .copy-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 8px 0; }
 .copy-row > span { min-width: 96px; color: var(--ink-muted); font-size: var(--text-meta); }
 .copy-row > input { flex: 1 1 240px; width: auto; font-family: ui-monospace, Consolas, monospace; }
+/* 검색 조건 접기 (검토 F6): a list with nothing in it keeps its filters folded */
+.filter-fold > summary { cursor: pointer; color: var(--ink-muted); font-size: var(--text-meta); margin: 8px 0; }
