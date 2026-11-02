@@ -151,7 +151,7 @@ export function StockPanel({
             page.items.map((p) => (
               <p key={p.id}>
                 <button disabled={busy} onClick={() => void open(p.id)}>
-                  {p.name} · {p.unit} · {p.id}
+                  {p.name} · {p.unit}
                 </button>
               </p>
             ))

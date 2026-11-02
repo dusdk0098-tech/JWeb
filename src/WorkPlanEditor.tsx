@@ -405,7 +405,7 @@ export function WorkPlanEditor({
       {editable && (
         <ActionBar note={record?.source_capture ? undefined : "저장한 뒤 아래에서 선택 참조를 취합해야 보관할 수 있습니다."}>
           <button disabled={allBusy || reviewDirty} onClick={() => void command("save")}>
-            초안 저장 · 참조 취합 초기화
+            초안 저장
           </button>
         </ActionBar>
       )}
@@ -448,7 +448,7 @@ export function WorkPlanEditor({
                   void command("archive");
               }}
             >
-              관리자가 기록 보관 (문서검토 아님)
+              관리자가 기록 보관
             </button>
           )}
           </Section>

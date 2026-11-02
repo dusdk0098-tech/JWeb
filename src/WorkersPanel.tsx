@@ -138,7 +138,7 @@ export function WorkersPanel({
                 <strong>{w.name}</strong> · {w.affiliation}
                 <small>
                   {w.kind === "worker" ? "근로자" : "방문자"} ·{" "}
-                  {w.active ? "활성" : "비활성"} · ID {w.id}
+                  {w.active ? "활성" : "비활성"}
                 </small>
               </span>
               {site.role === "manager" && (

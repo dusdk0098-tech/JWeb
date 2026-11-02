@@ -11,6 +11,7 @@
 | `58e81df` | Windows 11 Pro 10.0.26200, Node 24.14.1 | `npm run check` (lint·typecheck·test·build) | 테스트 372/372 통과 |
 | `58e81df` | 동일, Chromium 149.0.7827.55 (`CHROMIUM_PATH`) | `npm run test:e2e` | 28/28 통과 |
 | 각 PR | 동일 | 임시 DB(`DB_PATH`·`PORT=3100`) 서버 + 앱 내 브라우저 수동 확인 | PR 본문에 시나리오별 기록 |
+| `02c978e` (2026-11-02) | 동일 | `npm test` / `npm run test:e2e` | 단위 421/421, E2E 44/44 (스키마 75) |
 
 - E2E: 이 PC의 Playwright가 찾는 브라우저 빌드(1248)가 없어 설치돼 있던 Chromium 1228을 `CHROMIUM_PATH`로 지정했다. 지정 없이는 28개 모두 실행 파일 없음으로 실패한다(환경 문제).
 - 실행하지 않음: Linux CI, 알PDF 실제 출력, Android 에뮬레이터·실기기, 독립 보안검토, 사용자 UAT.

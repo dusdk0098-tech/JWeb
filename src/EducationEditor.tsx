@@ -143,7 +143,7 @@ export function EducationEditor({
       {record?.catalogSource&&<CatalogCurrentWarning path={`/sites/${site.id}/education/${record.id}`} disabled={busy || attachmentDirty}/>}
       <div className="section-head">
         <h1>
-          수기 교육일지 ·{" "}
+          교육일지 ·{" "}
           {record?.status === "archived" ? "기록 보관 확정" : "초안"}
         </h1>
         <button

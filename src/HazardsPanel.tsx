@@ -149,7 +149,7 @@ export function HazardsPanel({
                     </small>
                     <strong>{r.body.title}</strong>
                     <small>
-                      {r.body.location} · 버전 {r.version}
+                      {r.body.location}
                     </small>
                   </span>
                   <span>열기 →</span>

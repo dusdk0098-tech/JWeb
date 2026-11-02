@@ -41,7 +41,7 @@ test("general work plan requires explicit source capture before manual archive",
   await page.getByLabel("1. 작업 절차", { exact: true }).fill("수기 절차");
   await page.getByLabel("1. 주의사항", { exact: true }).fill("수기 주의");
   await page
-    .getByRole("button", { name: "초안 저장 · 참조 취합 초기화" })
+    .getByRole("button", { name: "초안 저장", exact: true })
     .click();
   await expect(
     page.getByRole("button", { name: "관리자가 기록 보관" }),

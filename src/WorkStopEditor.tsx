@@ -174,7 +174,7 @@ export function WorkStopEditor({
   return (
     <>
       <div className="section-head">
-        <h1>작업중지 요청·수기 기록</h1>
+        <h1>작업 중지 요청</h1>
         <button
           disabled={busy}
           onClick={() => {
@@ -186,9 +186,7 @@ export function WorkStopEditor({
       </div>
       <Notice tone="warning" summary="긴급 상황은 현장의 실제 대응 절차를 별도로 따르세요.">{workStopWarning}</Notice>
       <p>
-        관리자의 재개 기록은 원 요청자·개선 제출자와 다른 관리자만 가능합니다.
-        관리자 본인이 요청하면 다른 관리자가 필요합니다. 현장 관리에서 계정
-        배정을 확인하세요.
+        관리자의 재개 기록은 원 요청자·개선 제출자와 다른 관리자가 합니다. 관리자가 1명뿐인 현장에서는 본인 처리로 기록되고 화면에 그렇게 표시됩니다.
       </p>
       {error && (
         <p role="alert" className="error">
@@ -236,12 +234,12 @@ export function WorkStopEditor({
               </label>
             ),
           )}
-          <p>
+          <p className="muted">
             시각은 직접 입력합니다. 브라우저/서버 시간대에서 자동 추정하지
-            않습니다.
+            않습니다. 저장해도 외부 알림은 보내지 않습니다.
           </p>
           <ActionBar note={<span role="status">{""}</span>}>
-          <button disabled={busy}>요청 접수 기록 저장 (외부 알림 없음)</button>
+          <button disabled={busy}>요청 접수 기록 저장</button>
           </ActionBar>
         </form>
       ) : (
@@ -449,7 +447,7 @@ export function WorkStopEditor({
                   {action === "record-resumption" && cannotResume && (
                     <p role="alert">
                       원 요청자/개선 제출자는 재개 검토 기록을 작성할 수
-                      없습니다. 다른 관리자가 필요합니다.
+                      없습니다. 다른 관리자가 기록합니다.
                     </p>
                   )}
                   <button

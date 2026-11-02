@@ -44,7 +44,7 @@ function AttendanceHistoryView({
             {r.reason}
             <br />
             <small>
-              {r.actor_name} (계정 ID {r.actor_id}) · {r.at} · 담당자 수기
+              {r.actor_name} · {r.at} · 담당자 수기
             </small>
           </li>
         ))}

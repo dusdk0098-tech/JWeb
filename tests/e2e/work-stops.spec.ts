@@ -47,7 +47,7 @@ test("manual stop request preserves dirty input and terminal correction notes", 
   );
   await page
     .getByRole("button", {
-      name: "요청 접수 기록 저장 (외부 알림 없음)",
+      name: "요청 접수 기록 저장",
       exact: true,
     })
     .click();

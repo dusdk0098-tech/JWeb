@@ -147,7 +147,7 @@ export function WorkStopPanel({
                     </small>
                     <strong>{r.original.body.work}</strong>
                     <small>
-                      {r.original.body.location} · 버전 {r.version}
+                      {r.original.body.location}
                     </small>
                   </span>
                   <span>열기 →</span>
