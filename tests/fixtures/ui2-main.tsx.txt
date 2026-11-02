@@ -329,6 +329,7 @@ function App() {
           <TbmPanel
             key={site.id}
             site={site}
+            user={user}
             onDirtyChange={setAttendanceDirty}
             onBusyChange={setAttendanceBusy}
           />

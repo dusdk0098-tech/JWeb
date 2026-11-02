@@ -22,7 +22,7 @@ export function PpeCreate({
   const [source, setSource] = useState<WorkerCompany | null>(null),
     [item, setItem] = useState<StockItem | null>(null),
     [quantity, setQuantity] = useState(""),
-    [effectiveDate, setEffectiveDate] = useState(""),
+    [effectiveDate, setEffectiveDate] = useState(new Date().toLocaleDateString("en-CA")),
     [trade, setTrade] = useState(""),
     [location, setLocation] = useState(""),
     [reason, setReason] = useState(""),
@@ -34,7 +34,6 @@ export function PpeCreate({
       source ||
       item ||
       quantity ||
-      effectiveDate ||
       trade ||
       location ||
       reason

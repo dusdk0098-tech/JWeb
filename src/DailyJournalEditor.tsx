@@ -5,6 +5,7 @@ import { DailyJournalToday } from "./DailyJournalToday";
 import { DailyInspectionReferences,DailyInspectionCaptured } from "./DailyInspectionReferences";
 import { useEffect, useRef, useState } from "react";
 import { api, type Site, type User } from "./api";
+import { lastPlace, rememberPlace } from "./lastPlace";
 import { useDraftGuard } from "./useDraftGuard";
 import type { Page } from "./attendance-types";
 import type { DailyBody, DailyJournal } from "./daily-journal-types";
@@ -35,7 +36,7 @@ export function DailyJournalEditor({
   onRevision: (r: DailyJournal) => void;
 }) {
   const [record, setRecord] = useState(initial),
-    [body, setBody] = useState(initial?.body || blank()),
+    [body, setBody] = useState(initial?.body || { ...blank(), workLocations: lastPlace(site.id) }),
     [day, setDay] = useState(
       initial?.date || new Date().toLocaleDateString("en-CA"),
     ),
@@ -132,6 +133,7 @@ export function DailyJournalEditor({
           guard.key(path, value),
         ),
       );
+      rememberPlace(site.id, body.workLocations);
       offline.saved();
     } catch (e) {
       setError(offline.failed(e));

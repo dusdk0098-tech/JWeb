@@ -38,7 +38,7 @@ export function CostPanel({
     [tick, setTick] = useState(0),
     [record, setRecord] = useState<CostPeriod | null>(null),
     [creating, setCreating] = useState(false),
-    [month, setMonth] = useState(""),
+    [month, setMonth] = useState(new Date().toLocaleDateString("en-CA").slice(0, 7)),
     [note, setNote] = useState(""),
     [categories, setCategories] = useState<{ label: string; plan: string; opening: string; scCode?: number }[]>([
       { label: "", plan: "0", opening: "0" },

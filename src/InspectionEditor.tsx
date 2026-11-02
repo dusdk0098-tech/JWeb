@@ -8,6 +8,7 @@ import type { HazardRecord } from "./hazard-types";
 import { InspectionHistory } from "./InspectionHistory";
 import { useEffect, useRef, useState } from "react";
 import { api, type Site, type User, soleManagerOf } from "./api";
+import { lastPlace, rememberPlace } from "./lastPlace";
 import {
   inspectionStatus,
   resultLabel,
@@ -38,8 +39,8 @@ export function InspectionEditor({
     [form, setForm] = useState<InspectionBody>(
       initial?.body || {
         date: new Date().toLocaleDateString("en-CA"),
-        location: "",
-        performedBy: "",
+        location: lastPlace(site.id),
+        performedBy: user.name,
         answers: template!.body.items.map((i) => ({
           itemId: i.id,
           result: "pending",
@@ -79,6 +80,7 @@ export function InspectionEditor({
   }, [site.id, site.role]);
   function adopt(next: Inspection) {
     setRecord(next);
+    rememberPlace(site.id, next.body.location);
     setForm(next.body);
     baseline.current = JSON.stringify(next.body);
     setReason("");
