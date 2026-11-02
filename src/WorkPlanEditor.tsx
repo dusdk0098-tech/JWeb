@@ -23,7 +23,7 @@ import {
 } from "./work-plan-types";
 const empty = (): WorkPlanBody => ({
   title: "",
-  date: "",
+  date: new Date().toLocaleDateString("en-CA"),
   startTime: "09:00",
   endTime: "10:00",
   location: "",

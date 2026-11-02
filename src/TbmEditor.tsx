@@ -3,7 +3,8 @@ import { AiPolish } from "./AiDescriptionSuggest";
 import { ActionBar, Notice, PageHeader, Section, StatusChip, TechDetails } from "./ui";
 import { TbmRiskReferencePicker } from "./TbmRiskReferencePicker";
 import { useEffect, useRef, useState } from "react";
-import { api, type Site } from "./api";
+import { api, type Site, type User } from "./api";
+import { lastPlace, rememberPlace } from "./lastPlace";
 import { TbmInvitations } from "./TbmInvitations";
 import { useOfflineDraft } from "./useOfflineDraft";
 import type { Worker, Page } from "./attendance-types";
@@ -19,6 +20,7 @@ const empty = (): TbmDetails => ({
 });
 export function TbmEditor({
   site,
+  user,
   initial,
   onDirtyChange,
   onBusyChange,
@@ -27,6 +29,7 @@ export function TbmEditor({
   onRevision,
 }: {
   site: Site;
+  user: User;
   initial: TbmFull | null;
   onDirtyChange: (value: boolean) => void;
   onBusyChange: (value: boolean) => void;
@@ -36,7 +39,7 @@ export function TbmEditor({
 }) {
   const [record, setRecord] = useState(initial),
     [form, setForm] = useState<TbmDetails>(
-      initial?.snapshot?.body.details || initial?.body || empty(),
+      initial?.snapshot?.body.details || initial?.body || { ...empty(), facilitator: user.name, location: lastPlace(site.id) },
     ),
     [busy, setBusy] = useState(false),
     [error, setError] = useState(""),
@@ -133,6 +136,7 @@ export function TbmEditor({
       setFixedSource(null);
       setForm(next.body);
       setKey(crypto.randomUUID());
+      rememberPlace(site.id, next.body.location);
       offline.saved();
     } catch (e) {
       setError(offline.failed(e));

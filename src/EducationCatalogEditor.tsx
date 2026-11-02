@@ -41,7 +41,7 @@ export function EducationCatalogEditor({
     [readAll, setReadAll] = useState(false),
     [review, setReview] = useState<CatalogReviewRecord | null>(null), [reviewDirty, setReviewDirty] = useState(false),
     [schedule, setSchedule] = useState({
-      date: "",
+      date: new Date().toLocaleDateString("en-CA"),
       startTime: "09:00",
       endTime: "10:00",
       breakMinutes: 0,

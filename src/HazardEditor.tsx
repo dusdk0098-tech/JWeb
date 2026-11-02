@@ -4,6 +4,7 @@ import { Notice, TechDetails } from "./ui";
 import { HazardInspectionSource } from "./HazardInspectionSource";
 import { useEffect, useRef, useState } from "react";
 import { api, type Site, type User, soleManagerOf } from "./api";
+import { rememberPlace } from "./lastPlace";
 import {
   statusLabel,
   type HazardDetails,
@@ -121,6 +122,7 @@ export function HazardEditor({
         saveKey,
       );
       setRecord(next);
+      rememberPlace(site.id, next.body.location);
       setForm(next.body);
       setSaveKey(crypto.randomUUID());
       offline.saved();

@@ -4,6 +4,7 @@ import { CatalogCurrentWarning } from "./CatalogCurrentWarning";
 import { EducationCatalogProvenance } from "./EducationCatalogProvenance";
 import { useEffect, useRef, useState } from "react";
 import { api, type Site, type User } from "./api";
+import { lastPlace, rememberPlace } from "./lastPlace";
 import type { EducationInput, EducationFull } from "./education-types";
 import { useDraftGuard } from "./useDraftGuard";
 import { EducationParticipants } from "./EducationParticipants";
@@ -39,7 +40,7 @@ export function EducationEditor({
   onBusyChange: (v: boolean) => void;
 }) {
   const [record, setRecord] = useState(initial),
-    [form, setForm] = useState(initial?.body || empty()),
+    [form, setForm] = useState(initial?.body || { ...empty(), instructor: user.name, location: lastPlace(site.id) }),
     [participantDirty, setParticipantDirty] = useState(false),
     [reason, setReason] = useState(""),
     [authorId, setAuthorId] = useState(initial?.author_id || user.id),
@@ -73,6 +74,7 @@ export function EducationEditor({
   }, [site.id, site.role]);
   function adopt(next: EducationFull) {
     setRecord(next);
+    rememberPlace(site.id, next.body.location);
     setForm(next.body);
     baseline.current = JSON.stringify(next.body);
     setReason("");

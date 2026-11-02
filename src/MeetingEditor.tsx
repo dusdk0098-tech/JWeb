@@ -6,6 +6,7 @@ import { MinutesFollowupsPanel } from "./MinutesFollowupsPanel";
 import { useDraftGuard } from "./useDraftGuard";
 import { useState } from "react";
 import { api, type Meeting, type Site, type User } from "./api";
+import { lastPlace, rememberPlace } from "./lastPlace";
 const empty = (): Omit<Meeting, "id" | "version"> => ({
   title: "",
   type: "안전보건협의체",
@@ -35,7 +36,7 @@ export function MeetingEditor({
   onClose: () => void;
   onSaved: (m: Meeting) => void;
 }) {
-  const [value, setValue] = useState(initial || empty());
+  const [value, setValue] = useState(initial || { ...empty(), location: lastPlace(site.id) });
   const [saved, setSaved] = useState(initial);
   const [dirty, setDirty] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -91,6 +92,7 @@ export function MeetingEditor({
         decisions,
         actions,
       };
+      rememberPlace(site.id, location);
       const result = await api<Meeting>(
         `/sites/${site.id}/minutes${saved ? "/" + saved.id : ""}`,
         saved ? "PUT" : "POST",

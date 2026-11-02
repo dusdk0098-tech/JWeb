@@ -1,15 +1,17 @@
 import { useEffect, useState } from "react";
 import { EmptyState, Notice, PageHeader, StatusChip } from "./ui";
-import { api, type Site } from "./api";
+import { api, type Site, type User } from "./api";
 import type { TbmSession, TbmFull } from "./tbm-types";
 import type { Page } from "./attendance-types";
 import { TbmEditor } from "./TbmEditor";
 export function TbmPanel({
   site,
+  user,
   onDirtyChange,
   onBusyChange,
 }: {
   site: Site;
+  user: User;
   onDirtyChange: (dirty: boolean) => void;
   onBusyChange: (busy: boolean) => void;
 }) {
@@ -70,6 +72,7 @@ export function TbmPanel({
       <TbmEditor
         key={open.record?.id || "new"}
         site={site}
+        user={user}
         initial={open.record}
         onDirtyChange={onDirtyChange}
         onBusyChange={onBusyChange}
