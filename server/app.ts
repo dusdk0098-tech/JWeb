@@ -76,6 +76,7 @@ import { registerNoticeRoutes } from "./notices.js";
 import { registerEducationRoutes } from "./education.js";
 import { registerInspectionLinkRoutes } from "./inspection-links.js";
 import { registerInspectionTemplates } from "./inspection-templates.js";
+import { seedDefaultTemplates } from "./default-templates.js";
 import { registerInspectionRoutes } from "./inspections.js";
 import express, {
   type Request,
@@ -314,6 +315,7 @@ export async function createApp(db: Db, config: AppConfig) {
           "manager",
         );
         audit(db, req.session.userId!, id, "site.created", id);
+        seedDefaultTemplates(db, id, req.session.userId!); // 검토 F1: the first inspection needs no form design
         return { id, name: input.name, version: 1, role: "manager" };
       },
       () => {
