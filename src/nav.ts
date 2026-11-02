@@ -21,6 +21,7 @@ export const NAV_GROUPS: NavGroup[] = [
   ] },
   { id: "resources", title: "현장 자원", icon: "roster", items: [
     { id: "attendance", title: "명부 · 출역", icon: "roster" },
+    { id: "qualifications", title: "이수 · 자격", icon: "education" },
     { id: "companyppe", title: "업체 · 소속", icon: "company-ppe" },
     { id: "equipment", title: "장비", icon: "equipment" },
     { id: "stock", title: "재고 · 보호구", icon: "stock", managerOnly: true }, // PPE issue/return lives here (결정 8)

@@ -6,6 +6,7 @@ import {
   WorkStopPanel,
   IncidentsPanel,
   PermitsPanel,
+  QualificationsPanel,
   ManagerOverview,
   WorkPlanPanel,
   StockPanel,
@@ -359,6 +360,13 @@ function App() {
             openId={focus?.id}
             user={user}
             onNavigate={(next) => { if (!mayLeaveAttendance()) return; setTab(next); setFocus({ sub: "workers" }); setError(""); }}
+            onDirtyChange={setAttendanceDirty}
+            onBusyChange={setAttendanceBusy}
+          />
+        ) : site && tab === "qualifications" ? (
+          <QualificationsPanel
+            key={site.id}
+            site={site}
             onDirtyChange={setAttendanceDirty}
             onBusyChange={setAttendanceBusy}
           />

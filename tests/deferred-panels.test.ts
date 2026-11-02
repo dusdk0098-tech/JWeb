@@ -47,8 +47,8 @@ test("lazy maintenance preserves App state/navigation/dirty/busy functions", () 
     new URL("../src/DomainPanels.tsx", import.meta.url),
     "utf8",
   );
-  assert.equal((registry.match(/export const /g) || []).length, 20);
-  assert.equal((registry.match(/\bimport\("\.\//g) || []).length, 40); // 20 type imports +20 dynamic expressions
+  assert.equal((registry.match(/export const /g) || []).length, 21);
+  assert.equal((registry.match(/\bimport\("\.\//g) || []).length, 42); // 21 type imports +21 dynamic expressions
 });
 test("panel download retry is explicit, props preserved, and business render errors are not hidden", async () => {
   let calls = 0;
