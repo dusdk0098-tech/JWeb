@@ -24,6 +24,8 @@ import { Login } from "./Login";
 import { AppShell } from "./AppShell";
 import { Home } from "./Home";
 import { JoinPage } from "./JoinPage";
+import { SignupPage } from "./SignupPage";
+import { WorkerProfile } from "./WorkerProfile";
 import { clearOfflineDrafts } from "./offline-draft";
 import { Minutes } from "./Minutes";
 import { SiteManagement } from "./SiteManagement";
@@ -207,6 +209,8 @@ function App() {
           <PublicAccessSettings />
         ) : tab === "accounts" && flags.operator && flags.local ? (
           <AccountsPanel />
+        ) : tab === "account" && user.worker ? (
+          <WorkerProfile onRelogin={() => location.reload()} />
         ) : tab === "account" ? (
           <PasswordChange
             onDirtyChange={setAttendanceDirty}
@@ -391,6 +395,6 @@ function App() {
 }
 createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
-    {location.pathname === "/join" ? <JoinPage /> : <App />}
+    {location.pathname === "/join" ? <JoinPage /> : location.pathname === "/signup" ? <SignupPage /> : <App />}
   </React.StrictMode>,
 );

@@ -50,9 +50,9 @@ export function migrateTbmSignatures(db: Db) {
 `);
 }
 export const INVITATION_HOURS = 2;
-const sha = (v: string) => createHash("sha256").update(v).digest("hex");
-const birthHash = (birthDate: string, salt: string) => scryptSync(birthDate, salt, 32).toString("hex");
-const nameKey = (v: string) => v.normalize("NFKC").replace(/\s+/g, "");
+export const sha = (v: string) => createHash("sha256").update(v).digest("hex");
+export const birthHash = (birthDate: string, salt: string) => scryptSync(birthDate, salt, 32).toString("hex");
+export const nameKey = (v: string) => v.normalize("NFKC").replace(/\s+/g, "");
 type Session = { id: string; site_id: string; body: string; status: string; version: number };
 const tbmHash = (s: Session) => journalHash({ id: s.id, version: s.version, body: JSON.parse(s.body) });
 const joinInput = z.object({

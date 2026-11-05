@@ -38,6 +38,7 @@ export function Login({
       setCreated(r.email); setSetup({ needsOperator: false, local: true });
     } catch (e) { setError((e as Error).message); } finally { setBusy(false); }
   }
+  const [worker, setWorker] = useState(false); // 근로자 로그인: name + date of birth (QR signup accounts)
   async function submit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     if (busy) return;
@@ -45,10 +46,12 @@ export function Login({
     setError("");
     const data = new FormData(e.currentTarget);
     try {
-      const s = await api<{ user: User; csrf: string }>("/login", "POST", {
-        email: data.get("email"),
-        password: data.get("password"),
-      });
+      const s = worker
+        ? await api<{ user: User; csrf: string }>("/login/worker", "POST", { name: data.get("name"), birth: data.get("birth") })
+        : await api<{ user: User; csrf: string }>("/login", "POST", {
+            email: data.get("email"),
+            password: data.get("password"),
+          });
       setCsrf(s.csrf);
       if (s.user.id !== keepDraftsFor) await clearOfflineDrafts(); // another account → new device key, old drafts gone
       onLogin(s.user);
@@ -69,8 +72,16 @@ export function Login({
       <section className="login-form panel">
         <h2>로그인</h2>
         {notice && <StatusBar tone="warning" role="status">{notice}</StatusBar>}
-        <p>운영 담당자가 발급한 계정을 입력하세요.</p>
-        <form onSubmit={submit}>
+        <div className="segmented" role="group" aria-label="로그인 방식">
+          <button type="button" aria-pressed={!worker} className={worker ? "secondary" : ""} onClick={() => { setWorker(false); setError(""); }}>관리자 · 이메일</button>
+          <button type="button" aria-pressed={worker} className={worker ? "" : "secondary"} onClick={() => { setWorker(true); setError(""); }}>근로자</button>
+        </div>
+        <p>{worker ? "현장 가입 QR로 가입할 때 넣은 이름과 생년월일을 입력하세요." : "운영 담당자가 발급한 계정을 입력하세요."}</p>
+        <form onSubmit={submit} key={worker ? "worker" : "email"}>
+          {worker ? (<>
+          <label>이름<input name="name" required maxLength={100} autoComplete="name" /></label>
+          <label>생년월일 6자리<input name="birth" required inputMode="numeric" pattern="\d{6}" maxLength={6} autoComplete="off" placeholder="예: 850315" /></label>
+          </>) : (<>
           <label>
             이메일
             <input
@@ -91,6 +102,7 @@ export function Login({
               maxLength={128}
             />
           </label>
+          </>)}
           {(error || outerError) && (
             <p role="alert" className="error">
               {error || outerError}
@@ -99,7 +111,7 @@ export function Login({
           <button disabled={busy}>{busy ? "확인 중…" : "로그인"}</button>
         </form>
         <p className="muted">
-          공개 가입·비밀번호 재설정·SSO는 제공하지 않습니다. 계정은 운영자나 발급 권한을 받은 현장 관리자가 만듭니다.
+          근로자는 현장 관리자가 보여 주는 가입 QR로 가입합니다. 비밀번호 재설정·SSO는 제공하지 않습니다. 관리자 계정은 운영자나 발급 권한을 받은 현장 관리자가 만듭니다.
         </p>
         {created && <StatusBar tone="success" role="status">{created}을(를) 운영자로 정했습니다. 위에서 로그인하세요.</StatusBar>}
         {setup?.needsOperator && setup.local && !created && (

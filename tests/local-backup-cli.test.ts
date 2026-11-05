@@ -71,7 +71,7 @@ test("current schema source matches actual database and backup without migration
   const { CURRENT_SCHEMA_VERSION } = await import("../server/schema-version.js");
   const { BACKUP_SCHEMA_VERSION } = await import("../scripts/local-backup.js");
   const { DatabaseSync } = await import("node:sqlite");
-  assert.equal(CURRENT_SCHEMA_VERSION, 78); // Independent current release expectation.
+  assert.equal(CURRENT_SCHEMA_VERSION, 79); // Independent current release expectation.
   assert.equal(BACKUP_SCHEMA_VERSION, CURRENT_SCHEMA_VERSION);
   const dir = await mkdtemp(join(tmpdir(), "pedit-cli-schema-"));
   try {

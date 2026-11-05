@@ -49,7 +49,7 @@ export function errorText(data: { error?: string; fields?: { message: string }[]
   const reasons = [...new Set((data.fields ?? []).map((f) => f.message).filter((m) => /[가-힣]/.test(m)))];
   return (data.error || "요청을 처리하지 못했습니다.") + (reasons.length ? " " + reasons.join(" / ") : "");
 }
-export type User = { id: string; name: string; email: string };
+export type User = { id: string; name: string; email: string; worker?: boolean }; // worker: QR signup account
 export type Site = {
   id: string;
   name: string;

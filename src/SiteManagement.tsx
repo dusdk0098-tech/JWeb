@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { SiteJoinLinks } from "./SiteJoinLinks";
 import { api, type Site, type User } from "./api";
 export function SiteManagement({
   site,
@@ -127,7 +128,7 @@ export function SiteManagement({
                       {m.name} · {m.email}
                       <small>{m.role}</small>
                     </span>
-                    {issuer && m.role !== "manager" && (
+                    {issuer && m.role !== "manager" && !m.email.startsWith("근로자 · ") && (
                       <button type="button" disabled={busy} className="secondary" onClick={() => setReset(reset === m.id ? null : m.id)}>
                         비밀번호 초기화
                       </button>
@@ -158,6 +159,7 @@ export function SiteManagement({
                   </li>
                 ))}
               </ul>
+              <SiteJoinLinks siteId={site.id} />
               {issuer && (
                 <form onSubmit={(e) => { e.preventDefault(); const f = e.currentTarget, d = new FormData(f); void run(() => api(`/sites/${site.id}/accounts`, "POST", { name: d.get("name"), email: d.get("email"), password: d.get("password"), role: d.get("role") }, crypto.randomUUID()).then(() => f.reset())); }}>
                   <fieldset disabled={busy}>
