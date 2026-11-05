@@ -6,7 +6,7 @@ test("accepted failure creates one draft and opens immutable provenance", async 
   browser,
 }) => {
   await page.goto("/");
-  await page.getByLabel("이메일", { exact: true }).fill("test@example.test");
+  await page.getByLabel("이메일 또는 아이디", { exact: true }).fill("test@example.test");
   await page
     .getByLabel("비밀번호", { exact: true })
     .fill("synthetic-e2e-password");
@@ -48,7 +48,7 @@ test("accepted failure creates one draft and opens immutable provenance", async 
     const staff = await ctx.newPage();
     await staff.goto("/");
     await staff
-      .getByLabel("이메일", { exact: true })
+      .getByLabel("이메일 또는 아이디", { exact: true })
       .fill("editor@example.test");
     await staff
       .getByLabel("비밀번호", { exact: true })

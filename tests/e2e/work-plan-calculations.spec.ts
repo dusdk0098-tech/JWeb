@@ -3,7 +3,7 @@ import { randomUUID } from "node:crypto";
 // P-02: the editor shows the "not engineer-reviewed" warnings and live results; the printed calculation sheet has none of them.
 test("work plan 장비 계산: warnings on screen, crawler result, save and print without warnings", async ({ page }) => {
   await page.goto("/");
-  await page.getByLabel("이메일", { exact: true }).fill("test@example.test");
+  await page.getByLabel("이메일 또는 아이디", { exact: true }).fill("test@example.test");
   await page.getByLabel("비밀번호", { exact: true }).fill("synthetic-e2e-password");
   await page.getByRole("button", { name: "로그인", exact: true }).click();
   await expect(page.getByRole("heading", { name: "오늘", exact: true })).toBeVisible();

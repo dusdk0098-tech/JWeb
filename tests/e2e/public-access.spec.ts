@@ -2,7 +2,7 @@ import { test, expect } from "@playwright/test";
 // Self-hosting settings: editable on this PC (loopback), saved for the next start, the tunnel token is never shown back.
 test("외부 접속 설정: save tunnel settings on this PC, applied at next start", async ({ page }) => {
   await page.goto("/");
-  await page.getByLabel("이메일", { exact: true }).fill("test@example.test");
+  await page.getByLabel("이메일 또는 아이디", { exact: true }).fill("test@example.test");
   await page.getByLabel("비밀번호", { exact: true }).fill("synthetic-e2e-password");
   await page.getByRole("button", { name: "로그인", exact: true }).click();
   await expect(page.getByRole("heading", { name: "오늘", exact: true })).toBeVisible();

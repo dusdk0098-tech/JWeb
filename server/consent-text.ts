@@ -32,3 +32,21 @@ export const SIGNUP_CONSENT = {
     },
   ],
 } as const;
+// 현장 관리자 가입 신청 동의 (server/manager-signup.ts). DRAFT wording, 2026-11-05 — confirm before real use.
+export const MANAGER_SIGNUP_CONSENT = {
+  version: "manager-signup-draft-1",
+  items: [
+    {
+      id: "collect", required: true, title: "[필수] 개인정보 수집·이용 동의",
+      text: "수집 항목: 이름, 아이디, 소속(회사명), 맡을 현장 이름, 운영자에게 남기는 말. 목적: 현장 관리자 계정 승인과 관리. 비밀번호는 바꾼 값(해시)만 저장합니다. 보유 기간: 계정을 지우거나 운영자가 현장을 정리할 때까지. 반려된 신청은 비밀번호를 지우고 이름·아이디만 기록으로 남깁니다.",
+    },
+    {
+      id: "share", required: true, title: "[필수] 현장 구성원 표시 동의",
+      text: "이름과 아이디가 운영자와 같은 현장의 구성원 화면에 표시됩니다. 현장 밖으로 공개하지 않습니다.",
+    },
+    {
+      id: "pledge", required: true, title: "[필수] 서약",
+      text: "본인 정보로 신청하며, 비밀번호를 다른 사람과 나누지 않겠습니다. 현장 구성원의 개인정보를 현장 업무 밖에서 쓰지 않겠습니다.",
+    },
+  ],
+} as const;

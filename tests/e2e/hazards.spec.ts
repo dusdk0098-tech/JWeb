@@ -5,7 +5,7 @@ test("report → assignment → assigned staff remediation → manager review �
   browser,
 }) => {
   await page.goto("/");
-  await page.getByLabel("이메일", { exact: true }).fill("test@example.test");
+  await page.getByLabel("이메일 또는 아이디", { exact: true }).fill("test@example.test");
   await page
     .getByLabel("비밀번호", { exact: true })
     .fill("synthetic-e2e-password");
@@ -75,7 +75,7 @@ test("report → assignment → assigned staff remediation → manager review �
   try {
     await other.goto("/");
     await other
-      .getByLabel("이메일", { exact: true })
+      .getByLabel("이메일 또는 아이디", { exact: true })
       .fill("editor@example.test");
     await other
       .getByLabel("비밀번호", { exact: true })

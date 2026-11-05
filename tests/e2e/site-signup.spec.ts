@@ -4,7 +4,7 @@ import { randomUUID } from "node:crypto";
 // opens '내 정보' with the birth date, then signs in again with name + birth date.
 test("worker joins a site by QR link, edits their info, signs in by name and birth date", async ({ page, browser }) => {
   await page.goto("/");
-  await page.getByLabel("이메일", { exact: true }).fill("test@example.test");
+  await page.getByLabel("이메일 또는 아이디", { exact: true }).fill("test@example.test");
   await page.getByLabel("비밀번호", { exact: true }).fill("synthetic-e2e-password");
   await page.getByRole("button", { name: "로그인", exact: true }).click();
   await expect(page.getByRole("heading", { name: "오늘", exact: true })).toBeVisible();
@@ -42,8 +42,9 @@ test("worker joins a site by QR link, edits their info, signs in by name and bir
 
   await w.getByRole("button", { name: "로그아웃" }).first().click();
   await w.getByRole("button", { name: "근로자", exact: true }).click();
-  await w.getByLabel("이름", { exact: true }).fill("합성 근로자");
-  await w.getByLabel("생년월일 6자리").fill("850315");
+  const loginForm = w.getByRole("form", { name: "로그인" });
+  await loginForm.getByLabel("이름", { exact: true }).fill("합성 근로자");
+  await loginForm.getByLabel("생년월일 6자리").fill("850315");
   await w.getByRole("button", { name: "로그인", exact: true }).click();
   await expect(w.getByRole("button", { name: "로그아웃" }).first()).toBeVisible(); // signed in; the last screen reopens
   await expect(w.getByText("근로자 · 합성전기").first()).toBeVisible();

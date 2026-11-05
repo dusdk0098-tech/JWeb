@@ -21,7 +21,7 @@ test("extracted Login preserves bounded credential fields and escapes outer erro
       error: "<script>error</script>",
     }),
   );
-  assert.match(html, /type="email"/);
+  assert.match(html, /<input type="text" required="" autoComplete="username" maxLength="254" name="email"\/>/); // e-mail or login ID
   assert.match(html, /maxLength="254"/);
   assert.match(html, /type="password"/);
   assert.match(html, /maxLength="128"/);

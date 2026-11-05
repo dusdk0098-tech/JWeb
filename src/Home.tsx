@@ -77,11 +77,15 @@ export function Home({ site, user, ads, operatorLocal, onOpen }: { site: Site | 
     return () => { active = false; };
   }, [site?.id, site?.role]);
   const d = today();
+  const [signups, setSignups] = useState(0); // 운영자: 기다리는 관리자 가입 신청
+  useEffect(() => { if (operatorLocal) api<{ items: unknown[] }>("/manager-signups").then((v) => setSignups(v.items.length)).catch(() => setSignups(0)); }, [operatorLocal]);
+  const signupLine = operatorLocal && signups > 0 && <p className="home-status"><strong>관리자 가입 신청 {signups}건</strong> <button type="button" className="secondary" onClick={() => onOpen("accounts")}>승인하러 가기</button></p>;
   if (!site) return (
     <section className="home">
       <h1>오늘</h1>
       <p className="muted">{KOR_DATE(d)}</p>
       {operatorLocal && <PublicStatusLine onOpen={onOpen} />}
+      {signupLine}
       <div className="ui-empty"><img src="/illustrations/no-records.svg" alt="" /><strong>아직 현장이 없습니다</strong><span>현장을 만들면 오늘 할 일이 여기에 모입니다.</span><button type="button" onClick={() => onOpen("sites")}>현장 만들러 가기</button></div>
     </section>
   );
@@ -116,6 +120,7 @@ export function Home({ site, user, ads, operatorLocal, onOpen }: { site: Site | 
         <span className="muted">{KOR_DATE(d)} · {site.name}</span>
       </div>
       {operatorLocal && <PublicStatusLine onOpen={onOpen} />}
+      {signupLine}
       {error && <p className="error" role="alert">{error}</p>}
       <div className="home-cards">
         {card("tbm", "오늘 TBM", tbmToday.length ? `${tbmToday.length}건 기록됨` : "아직 없음 · 시작하기", tbmToday.length ? "neutral" : "signal", "tbm")}

@@ -3,10 +3,15 @@ import { api } from "./api";
 import { Notice, PageHeader, StatusChip, TechDetails } from "./ui";
 // 계정 발급 (운영자 · 설치 PC 전용). The server decides every right; this screen only shows the forms.
 type Account = { id: string; email: string; name: string; operator: boolean; issuer: boolean };
+type Signup = { id: string; login_id: string; name: string; affiliation: string; site_name: string; note: string; created_at: string };
 export function AccountsPanel() {
   const [items, setItems] = useState<Account[] | null>(null), [busy, setBusy] = useState(false), [error, setError] = useState(""), [notice, setNotice] = useState("");
   const [reset, setReset] = useState<string | null>(null); // account whose password is being reset
-  const load = () => api<{ items: Account[] }>("/accounts").then((v) => setItems(v.items)).catch((e) => setError((e as Error).message));
+  const [signups, setSignups] = useState<{ items: Signup[]; sites: { id: string; name: string }[] } | null>(null); // 현장 관리자 가입 신청
+  const load = () => Promise.all([
+    api<{ items: Account[] }>("/accounts").then((v) => setItems(v.items)),
+    api<{ items: Signup[]; sites: { id: string; name: string }[] }>("/manager-signups").then(setSignups),
+  ]).catch((e) => setError((e as Error).message));
   useEffect(() => { void load(); }, []);
   async function run(action: () => Promise<unknown>, done: string) {
     setBusy(true); setError(""); setNotice("");
@@ -34,6 +39,24 @@ export function AccountsPanel() {
           <button>계정 만들기</button>
         </fieldset>
       </form>
+      <h2>관리자 가입 신청 <span className="muted">{signups ? `${signups.items.length}건` : "조회 중"}</span></h2>
+      {signups?.items.length === 0 && <p className="muted">기다리는 신청이 없습니다.</p>}
+      {signups?.items.map((s) => (
+        <article key={s.id} className="record-row">
+          <div className="record-row-main">
+            <h2>{s.name} · {s.affiliation}</h2>
+            <p>아이디 {s.login_id} · 맡을 현장 {s.site_name}{s.note ? ` · ${s.note}` : ""} · {new Date(s.created_at).toLocaleString()} 신청</p>
+            <form className="inline-create" onSubmit={(e) => { e.preventDefault(); const target = String(new FormData(e.currentTarget).get("target")); void run(() => api(`/manager-signups/${s.id}/approve`, "POST", target === "new" ? { newSiteName: s.site_name } : { siteId: target }, crypto.randomUUID()), `${s.name}님을 현장 관리자로 승인했습니다.`); }}>
+              <label>현장<select name="target" defaultValue="new"><option value="new">새 현장 만들기: {s.site_name}</option>{signups.sites.map((x) => <option key={x.id} value={x.id}>{x.name}</option>)}</select></label>
+              <button disabled={busy}>승인</button>
+            </form>
+            <form className="inline-create" onSubmit={(e) => { e.preventDefault(); const note = String(new FormData(e.currentTarget).get("note")); void run(() => api(`/manager-signups/${s.id}/reject`, "POST", { note }, crypto.randomUUID()), "신청을 반려했습니다."); }}>
+              <label>반려 사유<input name="note" required maxLength={500} /></label>
+              <button className="secondary" disabled={busy}>반려</button>
+            </form>
+          </div>
+        </article>
+      ))}
       <h2>계정 목록 <span className="muted">{items ? `${items.length}개` : "조회 중"}</span></h2>
       {items?.map((a) => (
         <article key={a.id} className="record-row">

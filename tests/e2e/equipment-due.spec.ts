@@ -5,7 +5,7 @@ test("manual due metadata uses explicit date and does not claim certification", 
   page,
 }) => {
   await page.goto("/");
-  await page.getByLabel("이메일", { exact: true }).fill("test@example.test");
+  await page.getByLabel("이메일 또는 아이디", { exact: true }).fill("test@example.test");
   await page
     .getByLabel("비밀번호", { exact: true })
     .fill("synthetic-e2e-password");
