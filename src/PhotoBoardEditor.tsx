@@ -2,8 +2,8 @@ import { useEffect, useRef, useState } from "react";
 import { api, uploadPhotoBoardDisplay, uploadPhotoBoardPhoto } from "./api";
 import { useDraftGuard } from "./useDraftGuard";
 import { makePhotoDisplay } from "./photo-display";
-import { circleAt, drawItem, moveCircle, moveItem, photoInfoTsv, resizeCircle, rotateItem, type Scene, type SceneItem } from "./photo-scene";
-import { MAX_ZOOM, panView, zoomView } from "../server/photo-view";
+import { boardFor, circleAt, drawBoard, drawItem, moveCircle, moveItem, photoInfoTsv, resizeCircle, rotateItem, type Scene, type SceneItem } from "./photo-scene";
+import { BOARD_MAX_ROWS, MAX_ZOOM, defaultBoard, panView, zoomView, type BoardPanel } from "../server/photo-view";
 import { ActionBar, Notice, PageHeader, Section, StatusChip } from "./ui";
 export type PhotoBoard = {
   id: string; title: string; version: number; updatedAt: string; body: { siteName: string; work: string; footer: string }; scene: Scene;
@@ -80,7 +80,8 @@ export function PhotoBoardEditor({ base, initial, writable, onClose, onDirtyChan
     ctx.font = "32px sans-serif"; ctx.fillText([draft.body.siteName, draft.body.work].filter(Boolean).join(" · "), 60, 130, W - 120);
     shown.forEach((item, i) => {
       const x = 60 + (i % cols) * (cell + 80), y = head + Math.floor(i / cols) * (cell + 80);
-      drawItem(ctx, images[item.photoId], item, { x, y, w: cell, h: cell });
+      const r = drawItem(ctx, images[item.photoId], item, { x, y, w: cell, h: cell }), b = boardFor(draft.scene, item);
+      if (b) drawBoard(ctx, b, r);
       ctx.fillStyle = "#111"; ctx.font = "30px sans-serif"; ctx.fillText(item.caption, x, y + cell + 16, cell);
     });
     ctx.font = "28px sans-serif"; ctx.fillText(draft.body.footer, 60, H - 80, W - 120);
@@ -115,6 +116,11 @@ export function PhotoBoardEditor({ base, initial, writable, onClose, onDirtyChan
       <label>폴더 추가(안의 PNG·JPEG만)<input type="file" multiple {...{ webkitdirectory: "" }} onChange={(e) => { if (e.target.files?.length) void upload(Array.from(e.target.files)); e.target.value = ""; }} /></label>
       </div>
       </Section>
+      <Section no={3} level={3} title="보드판">
+      <p className="muted">사진 위에 항목·내용 표를 얹습니다. 원본 사진은 그대로 두고 미리보기·PNG·사진대지 인쇄에만 그립니다.</p>
+      <label><input type="checkbox" checked={!!draft.scene.board} onChange={(e) => { const scene = { ...draft.scene }; if (e.target.checked) scene.board = defaultBoard(); else delete scene.board; change({ ...draft, scene }); }} />모든 사진에 보드판 넣기</label>
+      {draft.scene.board && <BoardFields name="보드판" value={draft.scene.board} onChange={(board) => change({ ...draft, scene: { ...draft.scene, board } })} />}
+      </Section>
     </fieldset>
     {unplaced.length > 0 && <p>배치 안 된 사진: {unplaced.map((p) => <button key={p.id} className="secondary" disabled={!writable || busy} onClick={() => setItems([...draft.scene.items, { photoId: p.id, included: true, rotation: 0, caption: "", circles: [] }])}>{p.filename} 배치</button>)}</p>}
     {draft.scene.items.length > 0 && <Notice summary="사진을 누르면 원형 강조가 생깁니다. 끌어서 옮깁니다.">사진을 누르면 그 자리에 원형 강조가 생깁니다. 강조는 끌어서 옮기고(손가락도 가능), 고른 뒤 화살표(Shift는 10배)·+/−·Delete 또는 아래 버튼으로 조정합니다. 확대한 사진은 빈 곳을 끌어 보이는 위치를 옮깁니다.</Notice>}
@@ -122,7 +128,7 @@ export function PhotoBoardEditor({ base, initial, writable, onClose, onDirtyChan
       {draft.scene.items.map((item, i) => {
         const photo = board.photos.find((p) => p.id === item.photoId);
         return <li key={item.photoId} className="photo-item" data-included={item.included}>
-          <ItemCanvas img={images[item.photoId]} item={item} label={`${i + 1}번 사진 ${photo?.filename ?? ""}`} selectedCircle={selected?.item === i ? selected.circle : null} writable={writable && !busy}
+          <ItemCanvas img={images[item.photoId]} item={item} board={boardFor(draft.scene, item)} label={`${i + 1}번 사진 ${photo?.filename ?? ""}`} selectedCircle={selected?.item === i ? selected.circle : null} writable={writable && !busy}
             onAdd={(x, y) => { if (!writable) return; setItem(i, { ...item, circles: [...item.circles, { x, y, r: 0.08, color: "red" as const }].slice(0, 10) }); setSelected({ item: i, circle: Math.min(item.circles.length, 9) }); }}
             onSelect={(c) => setSelected({ item: i, circle: c })} onCommit={(next) => setItem(i, next)}
             onKey={(e) => {
@@ -143,6 +149,12 @@ export function PhotoBoardEditor({ base, initial, writable, onClose, onDirtyChan
             <button className="secondary" onClick={() => setItem(i, rotateItem(item))}>90° 회전</button>
             <label>확대(배) <input type="range" min={1} max={MAX_ZOOM} step={0.25} value={item.view?.zoom ?? 1} onChange={(e) => { const view = zoomView(item.view, Number(e.target.value)), next: SceneItem = { ...item }; delete next.view; setItem(i, view ? { ...next, view } : next); }} /> {item.view?.zoom ?? 1}배</label>
             <label>설명<input maxLength={200} value={item.caption} onChange={(e) => setItem(i, { ...item, caption: e.target.value })} /></label>
+            <label>보드판<select aria-label={`${i + 1}번 사진 보드판 적용`} value={item.board === null ? "none" : item.board ? "own" : "common"} onChange={(e) => {
+              const next: SceneItem = { ...item }, v = e.target.value;
+              if (v === "common") delete next.board; else next.board = v === "none" ? null : structuredClone(draft.scene.board ?? defaultBoard());
+              setItem(i, next);
+            }}><option value="common">{draft.scene.board ? "공통 보드판" : "없음(공통 꺼짐)"}</option><option value="own">이 사진만 따로</option><option value="none">이 사진은 빼기</option></select></label>
+            {item.board && <details open><summary>{i + 1}번 사진 보드판</summary><BoardFields name={`${i + 1}번 사진 보드판`} value={item.board} onChange={(board) => setItem(i, { ...item, board })} /></details>}
             {item.circles.map((c, j) => <button className="secondary" key={j} aria-pressed={selected?.item === i && selected.circle === j} onClick={() => setSelected({ item: i, circle: j })}>강조 {j + 1}</button>)}
             {selected?.item === i && selected.circle !== null && item.circles[selected.circle] && <>
               <button className="secondary" onClick={() => setItem(i, { ...item, circles: item.circles.map((x, j) => (j === selected.circle ? resizeCircle(x, 0.02) : x)) })}>강조 크게</button>
@@ -162,8 +174,35 @@ export function PhotoBoardEditor({ base, initial, writable, onClose, onDirtyChan
     </ActionBar>
   </section>;
 }
-export function ItemCanvas({ img, item, label, selectedCircle, writable, onAdd, onSelect, onCommit, onKey }: {
-  img?: HTMLImageElement; item: SceneItem; label: string; selectedCircle: number | null; writable: boolean;
+const CORNERS = [["tl", "왼쪽 위"], ["tr", "오른쪽 위"], ["bl", "왼쪽 아래"], ["br", "오른쪽 아래"]] as const;
+// 보드판 fields; `name` prefixes every label so the common board and a photo's own board stay distinguishable.
+function BoardFields({ name, value: b, onChange }: { name: string; value: BoardPanel; onChange: (b: BoardPanel) => void }) {
+  const set = (p: Partial<BoardPanel>) => onChange({ ...b, ...p });
+  const setRow = (i: number, p: Partial<BoardPanel["rows"][number]>) => set({ rows: b.rows.map((r, j) => (j === i ? { ...r, ...p } : r)) });
+  return <div className="board-fields">
+    <table className="board-rows"><thead><tr><th scope="col">항목</th><th scope="col">내용</th><th scope="col"><span className="sr-only">줄 삭제</span></th></tr></thead><tbody>
+      {b.rows.map((r, i) => <tr key={i}>
+        <td><input aria-label={`${name} ${i + 1}줄 항목`} maxLength={20} value={r.label} onChange={(e) => setRow(i, { label: e.target.value })} /></td>
+        <td><input aria-label={`${name} ${i + 1}줄 내용`} maxLength={200} value={r.value} onChange={(e) => setRow(i, { value: e.target.value })} /></td>
+        <td><button type="button" className="secondary" disabled={b.rows.length <= 1} aria-label={`${name} ${i + 1}줄 삭제`} onClick={() => set({ rows: b.rows.filter((_, j) => j !== i) })}>삭제</button></td>
+      </tr>)}
+    </tbody></table>
+    <p><button type="button" className="secondary" disabled={b.rows.length >= BOARD_MAX_ROWS} onClick={() => set({ rows: [...b.rows, { label: "", value: "" }] })}>{name} 줄 추가</button> <span className="muted">최대 {BOARD_MAX_ROWS}줄</span></p>
+    <div className="segmented" role="group" aria-label={`${name} 위치`}>
+      {CORNERS.map(([v, l]) => <button type="button" key={v} aria-pressed={b.corner === v} className={b.corner === v ? "" : "secondary"} onClick={() => set({ corner: v })}>{l}</button>)}
+    </div>
+    <div className="grid">
+      <label>{name} 크기 <input type="range" aria-label={`${name} 크기`} min={0.2} max={1} step={0.05} value={b.size} onChange={(e) => set({ size: Number(e.target.value) })} /> {Math.round(b.size * 100)}%</label>
+      <label>{name} 바탕 진하기 <input type="range" aria-label={`${name} 바탕 진하기`} min={0.2} max={1} step={0.05} value={b.opacity} onChange={(e) => set({ opacity: Number(e.target.value) })} /> {Math.round(b.opacity * 100)}%</label>
+      <label>{name} 색<select aria-label={`${name} 색`} value={b.theme} onChange={(e) => set({ theme: e.target.value as BoardPanel["theme"] })}><option value="white">흰 보드</option><option value="green">녹색 칠판</option><option value="black">검은 보드</option></select></label>
+      <label>{name} 항목 정렬<select aria-label={`${name} 항목 정렬`} value={b.labelAlign} onChange={(e) => set({ labelAlign: e.target.value as "left" })}><option value="center">가운데</option><option value="left">왼쪽</option></select></label>
+      <label>{name} 내용 정렬<select aria-label={`${name} 내용 정렬`} value={b.valueAlign} onChange={(e) => set({ valueAlign: e.target.value as "left" })}><option value="left">왼쪽</option><option value="center">가운데</option></select></label>
+      <label><input type="checkbox" checked={b.bold} onChange={(e) => set({ bold: e.target.checked })} />{name} 글자 굵게</label>
+    </div>
+  </div>;
+}
+export function ItemCanvas({ img, item, board, label, selectedCircle, writable, onAdd, onSelect, onCommit, onKey }: {
+  img?: HTMLImageElement; item: SceneItem; board?: BoardPanel; label: string; selectedCircle: number | null; writable: boolean;
   onAdd: (x: number, y: number) => void; onSelect: (circle: number) => void; onCommit: (item: SceneItem) => void; onKey: (e: React.KeyboardEvent) => void;
 }) {
   const ref = useRef<HTMLCanvasElement>(null), rect = useRef({ x: 0, y: 0, w: 0, h: 0, ox: 0, oy: 0, fw: 0, fh: 0 }), [live, setLive] = useState<SceneItem | null>(null);
@@ -176,14 +215,15 @@ export function ItemCanvas({ img, item, label, selectedCircle, writable, onAdd, 
     ctx.fillStyle = "#f4f4f4"; ctx.fillRect(0, 0, canvas.width, canvas.height);
     if (!img) return;
     const r = (rect.current = drawItem(ctx, img, shown, { x: 0, y: 0, w: canvas.width, h: canvas.height }));
+    if (board) drawBoard(ctx, board, r);
     const c = selectedCircle !== null ? shown.circles[selectedCircle] : undefined;
     if (c) { const d = c.r * Math.min(r.fw, r.fh); ctx.setLineDash([6, 4]); ctx.strokeStyle = "#000"; ctx.lineWidth = 1; ctx.strokeRect(r.ox + c.x * r.fw - d, r.oy + c.y * r.fh - d, d * 2, d * 2); ctx.setLineDash([]); }
-  }, [img, shown, selectedCircle]);
+  }, [img, shown, selectedCircle, board]);
   const point = (e: React.PointerEvent<HTMLCanvasElement>) => {
     const box = e.currentTarget.getBoundingClientRect(), sx = e.currentTarget.width / box.width, sy = e.currentTarget.height / box.height;
     return { cx: (e.clientX - box.left) * sx, cy: (e.clientY - box.top) * sy };
   };
-  return <canvas ref={ref} width={480} height={360} tabIndex={0} role="img" aria-label={`${label} 미리보기${img ? "" : "(불러오는 중)"}, 원형 강조 ${shown.circles.length}개${shown.view ? `, ${shown.view.zoom}배 확대` : ""}`}
+  return <canvas ref={ref} width={480} height={360} tabIndex={0} role="img" aria-label={`${label} 미리보기${img ? "" : "(불러오는 중)"}, 원형 강조 ${shown.circles.length}개${shown.view ? `, ${shown.view.zoom}배 확대` : ""}${board ? `, 보드판 ${board.rows.length}줄` : ""}`}
     style={{ maxWidth: "100%", cursor: "crosshair", touchAction: writable ? "none" : "auto" }}
     onKeyDown={onKey}
     onPointerDown={(e) => {
