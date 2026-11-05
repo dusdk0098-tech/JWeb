@@ -18,7 +18,7 @@ export function AppShell({ user, sites, siteId, site, tab, disabled, error, oper
   const groups = NAV_GROUPS.filter((g) => !g.managerOnly || manager);
   const item = (i: NavItem, extra = "") => (
     <button key={i.id} type="button" disabled={disabled} className={(tab === i.id ? "active " : "") + extra} aria-current={tab === i.id ? "page" : undefined} onClick={() => onSelectTab(i.id)}>
-      <NavIcon name={i.icon} />{i.title}
+      <NavIcon name={i.icon} />{i.id === "account" && user.worker ? "내 정보" : i.title}
     </button>
   );
   const activeTab = MOBILE_TABS.find((t) => t.groups.includes(groupOf(tab)))?.id ?? "home";

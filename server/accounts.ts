@@ -103,7 +103,7 @@ export function registerAccounts(app: Express, db: Db, { access, mutate }: SiteO
   app.get("/api/accounts", (req, res) => {
     operator(req);
     const items = db.prepare(
-      "SELECT u.id,u.email,u.name,COALESCE(g.operator,0) AS operator,COALESCE(g.issuer,0) AS issuer FROM users u LEFT JOIN account_grants g ON g.user_id=u.id ORDER BY u.name,u.email",
+      "SELECT u.id,CASE WHEN w.user_id IS NULL THEN u.email ELSE '근로자 · ' || w.affiliation END AS email,u.name,COALESCE(g.operator,0) AS operator,COALESCE(g.issuer,0) AS issuer FROM users u LEFT JOIN account_grants g ON g.user_id=u.id LEFT JOIN worker_accounts w ON w.user_id=u.id ORDER BY u.name,u.email",
     ).all() as { id: string; email: string; name: string; operator: number; issuer: number }[];
     res.json({ items: items.map((u) => ({ ...u, operator: !!u.operator, issuer: !!u.issuer })) });
   });

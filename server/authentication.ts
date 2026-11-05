@@ -1,4 +1,4 @@
-import type { Express } from "express";
+import type { Express, Request, Response } from "express";
 import argon2 from "argon2";
 import { randomBytes } from "node:crypto";
 import { z } from "zod";
@@ -8,6 +8,8 @@ import { HttpError } from "./site-operations.js";
 import { credentials } from "./validation.js";
 import { grantsOf } from "./accounts.js";
 import { isLocalRequest } from "./local-admin.js";
+import { birth6, findWorker } from "./site-signup.js";
+import { nameKey } from "./tbm-join.js";
 import {
   currentSessionEpoch,
   persistedAccountSession,
@@ -73,6 +75,29 @@ export async function registerAuthentication(
       now.epoch === account.epoch
     );
   }
+  // Worker accounts (QR signup) have no e-mail: show their affiliation instead of the internal login key.
+  const sessionUser = (id: string) => {
+    const u = db.prepare("SELECT u.id,CASE WHEN w.user_id IS NULL THEN u.email ELSE '근로자 · ' || w.affiliation END email,u.name,w.user_id IS NOT NULL worker FROM users u LEFT JOIN worker_accounts w ON w.user_id=u.id WHERE u.id=?")
+      .get(id) as { id: string; email: string; name: string; worker: number } | undefined;
+    return u ? { ...u, worker: !!u.worker } : null;
+  };
+  async function signIn(req: Request, res: Response, user: Account) {
+    await new Promise<void>((resolve, reject) =>
+      req.session.regenerate((err) => (err ? reject(err) : resolve())),
+    );
+    if (!unchanged(user))
+      throw new HttpError(401, "인증 정보가 변경되었습니다. 다시 로그인하세요.");
+    req.session.userId = user.id;
+    req.session.authEpoch = user.epoch;
+    req.session.csrf = randomBytes(32).toString("hex");
+    req.session.issuedAt = Date.now();
+    await new Promise<void>((resolve, reject) =>
+      req.session.save((err) => (err ? reject(err) : resolve())),
+    );
+    if (!unchanged(user) || !persistedAccountSession(db, req.sessionID, user.id, user.epoch))
+      throw new HttpError(401, "인증 정보가 변경되었습니다. 다시 로그인하세요.");
+    res.json({ user: sessionUser(user.id), csrf: req.session.csrf });
+  }
   app.get("/api/session", (req, res) => {
     if (req.session.userId && !currentSessionEpoch(db, req.session)) {
       delete req.session.userId;
@@ -81,11 +106,7 @@ export async function registerAuthentication(
       delete req.session.csrf;
     }
     req.session.csrf ||= randomBytes(32).toString("hex");
-    const user = req.session.userId
-      ? db
-          .prepare("SELECT id,email,name FROM users WHERE id=?")
-          .get(req.session.userId)
-      : null;
+    const user = req.session.userId ? sessionUser(req.session.userId) : null;
     const grants = req.session.userId ? grantsOf(db, req.session.userId) : { operator: false, issuer: false };
     res.json({ user: user || null, csrf: req.session.csrf, adsEnabled: adsEnabled(), ...grants, local: isLocalRequest(req) });
   });
@@ -115,33 +136,32 @@ export async function registerAuthentication(
         );
         if (!user || !valid || !unchanged(user))
           throw new HttpError(401, "이메일 또는 비밀번호를 확인해 주세요.");
-        await new Promise<void>((resolve, reject) =>
-          req.session.regenerate((err) => (err ? reject(err) : resolve())),
-        );
-        if (!unchanged(user))
-          throw new HttpError(
-            401,
-            "인증 정보가 변경되었습니다. 다시 로그인하세요.",
-          );
-        req.session.userId = user.id;
-        req.session.authEpoch = user.epoch;
-        req.session.csrf = randomBytes(32).toString("hex");
-        req.session.issuedAt = Date.now();
-        await new Promise<void>((resolve, reject) =>
-          req.session.save((err) => (err ? reject(err) : resolve())),
-        );
-        if (
-          !unchanged(user) ||
-          !persistedAccountSession(db, req.sessionID, user.id, user.epoch)
-        )
-          throw new HttpError(
-            401,
-            "인증 정보가 변경되었습니다. 다시 로그인하세요.",
-          );
-        res.json({
-          user: { id: user.id, email: user.email, name: user.name },
-          csrf: req.session.csrf,
-        });
+        await signIn(req, res, user);
+      });
+    },
+  );
+  // 근로자 로그인: name + date of birth (6 digits), the owner's choice; failed tries are counted per name.
+  app.post(
+    "/api/login/worker",
+    rateLimit({
+      windowMs: 15 * 60 * 1000,
+      limit: 10,
+      keyGenerator: (req) => "worker:" + nameKey(String(req.body?.name ?? "")),
+      skipSuccessfulRequests: true,
+      standardHeaders: "draft-8",
+      legacyHeaders: false,
+      message: { error: "로그인 시도가 많습니다. 15분 후 다시 시도해 주세요." },
+    }),
+    async (req, res) => {
+      const input = z.object({ name: z.string().trim().min(1).max(100), birth: birth6 }).strict().parse(req.body);
+      await bounded(async () => {
+        const id = findWorker(db, input.name, input.birth);
+        const user = id
+          ? (db.prepare("SELECT u.*,a.epoch FROM users u JOIN account_auth a ON a.user_id=u.id WHERE u.id=?").get(id) as Account | undefined)
+          : undefined;
+        if (!user)
+          throw new HttpError(401, "이름과 생년월일을 확인해 주세요. 처음이면 현장 가입 QR로 가입하세요.");
+        await signIn(req, res, user);
       });
     },
   );
