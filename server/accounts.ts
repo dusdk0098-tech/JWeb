@@ -72,6 +72,25 @@ export function registerSetup(app: Express, db: Db) {
       res.json({ id, email: input.email, name: input.name });
     } catch (e) { next(e); }
   });
+  // An install upgraded from before operators existed has accounts but no operator. Same trust as creating the first one
+  // (install PC, no operator yet); the password proves which existing account becomes the operator.
+  app.post("/api/setup/claim", async (req, res, next) => {
+    try {
+      if (!isLocalRequest(req)) throw new HttpError(403, NOT_LOCAL);
+      if (hasOperator(db)) throw new HttpError(409, "운영자 계정이 이미 있습니다.");
+      const input = z.object({ email: z.email().max(254).transform((v) => v.toLowerCase()), password: z.string().min(1).max(128) }).strict().parse(req.body);
+      const user = db.prepare("SELECT id,password_hash FROM users WHERE email=?").get(input.email) as { id: string; password_hash: string } | undefined;
+      if (!user || !(await argon2.verify(user.password_hash, input.password))) throw new HttpError(401, "이메일 또는 비밀번호가 맞지 않습니다.");
+      transaction(db, () => {
+        if (hasOperator(db)) throw new HttpError(409, "운영자 계정이 이미 있습니다.");
+        db.prepare(
+          "INSERT INTO account_grants(user_id,operator,issuer,granted_by,granted_at) VALUES(?,1,1,NULL,?) ON CONFLICT(user_id) DO UPDATE SET operator=1,issuer=1,granted_by=NULL,granted_at=excluded.granted_at",
+        ).run(user.id, new Date().toISOString());
+        event(db, "operator_claimed", user.id, null, null);
+      });
+      res.json({ email: input.email });
+    } catch (e) { next(e); }
+  });
 }
 export function registerAccounts(app: Express, db: Db, { access, mutate }: SiteOperations) {
   function operator(req: Request) {

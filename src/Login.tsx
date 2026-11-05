@@ -28,6 +28,16 @@ export function Login({
       setCreated(r.email); setSetup({ needsOperator: false, local: true });
     } catch (e) { setError((e as Error).message); } finally { setBusy(false); }
   }
+  async function claimOperator(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    if (busy) return;
+    setBusy(true); setError("");
+    const data = new FormData(e.currentTarget);
+    try {
+      const r = await api<{ email: string }>("/setup/claim", "POST", { email: data.get("email"), password: data.get("password") });
+      setCreated(r.email); setSetup({ needsOperator: false, local: true });
+    } catch (e) { setError((e as Error).message); } finally { setBusy(false); }
+  }
   async function submit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     if (busy) return;
@@ -91,7 +101,7 @@ export function Login({
         <p className="muted">
           공개 가입·비밀번호 재설정·SSO는 제공하지 않습니다. 계정은 운영자나 발급 권한을 받은 현장 관리자가 만듭니다.
         </p>
-        {created && <StatusBar tone="success" role="status">운영자 계정 {created}을(를) 만들었습니다. 위에서 로그인하세요.</StatusBar>}
+        {created && <StatusBar tone="success" role="status">{created}을(를) 운영자로 정했습니다. 위에서 로그인하세요.</StatusBar>}
         {setup?.needsOperator && setup.local && !created && (
           <details className="ui-notice" open>
             <summary>이 PC에 운영자 계정이 없습니다 · 첫 운영자 만들기</summary>
@@ -101,6 +111,12 @@ export function Login({
               <label>운영자 이메일<input name="email" type="email" required maxLength={254} autoComplete="off" /></label>
               <label>운영자 비밀번호 (12자 이상)<input name="password" type="password" required minLength={12} maxLength={128} autoComplete="new-password" /></label>
               <button disabled={busy}>운영자 계정 만들기</button>
+            </form>
+            <p className="muted">이미 쓰던 계정이 있다면(이전 버전에서 올린 경우) 그 계정을 운영자로 지정할 수 있습니다.</p>
+            <form onSubmit={claimOperator} aria-label="기존 계정을 운영자로 지정">
+              <label>기존 계정 이메일<input name="email" type="email" required maxLength={254} autoComplete="username" /></label>
+              <label>기존 계정 비밀번호<input name="password" type="password" required maxLength={128} autoComplete="current-password" /></label>
+              <button disabled={busy}>이 계정을 운영자로 지정</button>
             </form>
           </details>
         )}
