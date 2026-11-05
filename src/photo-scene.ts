@@ -1,8 +1,24 @@
 // 사진 보드 scene geometry shared by the editor preview and the PNG output (same drawing for both).
-import { CIRCLE_COLORS, cropRect, rotateView, type View } from "../server/photo-view";
+import { BOARD_THEMES, CIRCLE_COLORS, boardLayout, boardTexts, cropRect, rotateView, type BoardPanel, type View } from "../server/photo-view";
 export type Circle = { x: number; y: number; r: number; color: "red" | "yellow" | "blue" };
-export type SceneItem = { photoId: string; included: boolean; rotation: 0 | 90 | 180 | 270; caption: string; circles: Circle[]; view?: View };
-export type Scene = { layoutVersion: 1; items: SceneItem[] };
+// board: undefined = the board's common 보드판, null = none on this photo, a panel = this photo's own.
+export type SceneItem = { photoId: string; included: boolean; rotation: 0 | 90 | 180 | 270; caption: string; circles: Circle[]; view?: View; board?: BoardPanel | null };
+export type Scene = { layoutVersion: 1; items: SceneItem[]; board?: BoardPanel };
+export const boardFor = (scene: Scene, item: SceneItem) => (item.board === null ? undefined : item.board ?? scene.board);
+// The 보드판 over the shown photo rectangle (drawItem's x, y, w, h), drawn the same way as the printed SVG.
+export function drawBoard(ctx: CanvasRenderingContext2D, b: BoardPanel, r: { x: number; y: number; w: number; h: number }) {
+  const l = boardLayout(b, r), t = BOARD_THEMES[b.theme];
+  ctx.save();
+  ctx.globalAlpha = b.opacity; ctx.fillStyle = t.fill; ctx.fillRect(l.x, l.y, l.w, l.h); ctx.globalAlpha = 1;
+  ctx.strokeStyle = t.text; ctx.lineWidth = Math.max(1, l.font * 0.08);
+  ctx.strokeRect(l.x, l.y, l.w, l.h);
+  ctx.beginPath(); ctx.moveTo(l.x + l.labelW, l.y); ctx.lineTo(l.x + l.labelW, l.y + l.h);
+  for (const row of l.rows.slice(1)) { ctx.moveTo(l.x, l.y + row.y); ctx.lineTo(l.x + l.w, l.y + row.y); }
+  ctx.stroke();
+  ctx.fillStyle = t.text; ctx.textBaseline = "alphabetic"; ctx.font = `${b.bold ? "bold " : ""}${l.font}px "Malgun Gothic", Pretendard, sans-serif`;
+  for (const x of boardTexts(b, l)) { ctx.textAlign = x.anchor === "middle" ? "center" : "left"; ctx.fillText(x.text, x.x, x.y); }
+  ctx.restore();
+}
 const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, Math.round(v * 1000) / 1000));
 // Circles (and the zoom view) are stored in the rotated (displayed) frame; turning the photo 90° clockwise keeps them on the same content.
 export function rotateItem(item: SceneItem): SceneItem {

@@ -7,7 +7,7 @@ import { rawAttachmentMetadata, checkRawImageHeader, recheckUploadSession } from
 import { attachmentUsage, enforceAttachmentQuota } from "./attachment-quota.js";
 import { sendAttachment, type boundedUploadReader } from "./bounded-upload.js";
 import { imageSize, PHOTO_DISPLAY_MAX_BYTES, PHOTO_DISPLAY_MAX_SIDE } from "./image-size.js";
-import { MAX_ZOOM, photoSvg } from "./photo-view.js";
+import { BOARD_MAX_ROWS, BOARD_THEMES, MAX_ZOOM, photoSvg } from "./photo-view.js";
 import { escapeHtml as e } from "./print.js";
 // 사진 보드(N) 1단계 (사진 정책 A안): originals kept as download-only bytes; only the browser-made EXIF-free JPEG is shown.
 // The scene (order, include, 90° rotation, caption, circle highlights in normalized coordinates) is stored apart from photos.
@@ -34,13 +34,22 @@ export function migratePhotoBoards(db: Db) {
 export const PHOTO_BOARD_MAX_PHOTOS = 40;
 const text = (max: number) => z.string().trim().max(max);
 const circle = z.object({ x: z.number().min(0).max(1), y: z.number().min(0).max(1), r: z.number().min(0.01).max(0.5), color: z.enum(["red", "yellow", "blue"]) }).strict();
+// 보드판 (docs/PHOTO_BOARD_FRANVIEW_ANALYSIS.md): optional; older saved scenes stay valid.
+const boardPanel = z.object({
+  rows: z.array(z.object({ label: text(20), value: text(200) }).strict()).min(1).max(BOARD_MAX_ROWS),
+  corner: z.enum(["tl", "tr", "bl", "br"]), size: z.number().min(0.2).max(1),
+  theme: z.enum(Object.keys(BOARD_THEMES) as [keyof typeof BOARD_THEMES, ...(keyof typeof BOARD_THEMES)[]]), opacity: z.number().min(0.2).max(1),
+  bold: z.boolean(), labelAlign: z.enum(["left", "center"]), valueAlign: z.enum(["left", "center"]),
+}).strict();
 export const photoScene = z.object({
   layoutVersion: z.literal(1),
+  board: boardPanel.optional(),
   items: z.array(z.object({
     photoId: z.uuid(), included: z.boolean(), rotation: z.union([z.literal(0), z.literal(90), z.literal(180), z.literal(270)]),
     caption: text(200), circles: z.array(circle).max(10),
     // 2단계: optional zoom view over the rotated photo (absent = whole photo); older saved scenes stay valid.
     view: z.object({ zoom: z.number().min(1).max(MAX_ZOOM), cx: z.number().min(0).max(1), cy: z.number().min(0).max(1) }).strict().optional(),
+    board: boardPanel.nullable().optional(), // undefined = the common 보드판, null = none on this photo
   }).strict()).max(PHOTO_BOARD_MAX_PHOTOS),
 }).strict();
 const boardBody = z.object({ siteName: text(200), work: text(500), footer: text(500) }).strict();
@@ -164,7 +173,7 @@ export function registerPhotoBoards(app: Express, db: Db, { access, mutate }: Si
     const slot = (item: z.infer<typeof photoScene>["items"][number]) => {
       const p = photos.get(item.photoId), caption = `<figcaption>${e(item.caption || "설명 미입력")}</figcaption>`;
       if (!p?.hasDisplay || !p.width || !p.height) return `<figure class="photo-slot"><p>표시본 없음 · ${e(p?.filename ?? "")}</p>${caption}</figure>`;
-      return `<figure class="photo-slot">${photoSvg({ href: src(p.id), width: p.width, height: p.height, rotation: item.rotation, circles: item.circles, view: item.view, label: `${e(item.caption || p.filename)} 사진`, clipId: `v-${p.id}` })}${caption}</figure>`;
+      return `<figure class="photo-slot">${photoSvg({ href: src(p.id), width: p.width, height: p.height, rotation: item.rotation, circles: item.circles, view: item.view, board: item.board === null ? undefined : item.board ?? v.scene.board, label: `${e(item.caption || p.filename)} 사진`, clipId: `v-${p.id}` })}${caption}</figure>`;
     };
     const items = v.scene.items.filter((i) => i.included), pages: (typeof items)[] = [];
     for (let i = 0; i < items.length; i += 2) pages.push(items.slice(i, i + 2));

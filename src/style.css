@@ -1086,3 +1086,10 @@ button.secondary[aria-pressed="true"] { background: var(--primary-soft); border-
 .copy-row > input { flex: 1 1 240px; width: auto; font-family: ui-monospace, Consolas, monospace; }
 /* 검색 조건 접기 (검토 F6): a list with nothing in it keeps its filters folded */
 .filter-fold > summary { cursor: pointer; color: var(--ink-muted); font-size: var(--text-meta); margin: 8px 0; }
+
+/* 사진 보드 보드판 입력 */
+.board-rows { width: 100%; border-collapse: collapse; }
+.board-rows th { text-align: left; font-weight: 600; }
+.board-rows td { padding: 2px 4px 2px 0; }
+.board-rows td:first-child { width: 30%; }
+.board-rows input { width: 100%; }
