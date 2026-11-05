@@ -1,6 +1,7 @@
 import { clearOfflineDrafts } from "./offline-draft";
 import React, { useEffect, useState } from "react";
 import { api, setCsrf, type User } from "./api";
+import { MANAGER_SIGNUP_CONSENT } from "../server/consent-text";
 import { StatusBar } from "./ui";
 export function Login({
   onLogin,
@@ -39,6 +40,18 @@ export function Login({
     } catch (e) { setError((e as Error).message); } finally { setBusy(false); }
   }
   const [worker, setWorker] = useState(false); // 근로자 로그인: name + date of birth (QR signup accounts)
+  const [applied, setApplied] = useState(""), [agreed, setAgreed] = useState<string[]>([]); // 현장 관리자 가입 신청
+  const consentIds = MANAGER_SIGNUP_CONSENT.items.map((i) => i.id), allAgreed = consentIds.every((id) => agreed.includes(id));
+  async function apply(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    if (busy) return;
+    setBusy(true); setError("");
+    const d = new FormData(e.currentTarget);
+    try {
+      await api("/manager-signup", "POST", { loginId: d.get("loginId"), password: d.get("password"), name: d.get("name"), affiliation: d.get("affiliation"), siteName: d.get("siteName"), note: d.get("note"), consentVersion: MANAGER_SIGNUP_CONSENT.version, agreed });
+      setApplied(String(d.get("loginId")));
+    } catch (e) { setError((e as Error).message); } finally { setBusy(false); }
+  }
   async function submit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     if (busy) return;
@@ -73,19 +86,19 @@ export function Login({
         <h2>로그인</h2>
         {notice && <StatusBar tone="warning" role="status">{notice}</StatusBar>}
         <div className="segmented" role="group" aria-label="로그인 방식">
-          <button type="button" aria-pressed={!worker} className={worker ? "secondary" : ""} onClick={() => { setWorker(false); setError(""); }}>관리자 · 이메일</button>
+          <button type="button" aria-pressed={!worker} className={worker ? "secondary" : ""} onClick={() => { setWorker(false); setError(""); }}>관리자</button>
           <button type="button" aria-pressed={worker} className={worker ? "" : "secondary"} onClick={() => { setWorker(true); setError(""); }}>근로자</button>
         </div>
         <p>{worker ? "현장 가입 QR로 가입할 때 넣은 이름과 생년월일을 입력하세요." : "운영 담당자가 발급한 계정을 입력하세요."}</p>
-        <form onSubmit={submit} key={worker ? "worker" : "email"}>
+        <form onSubmit={submit} key={worker ? "worker" : "email"} aria-label="로그인">
           {worker ? (<>
           <label>이름<input name="name" required maxLength={100} autoComplete="name" /></label>
           <label>생년월일 6자리<input name="birth" required inputMode="numeric" pattern="\d{6}" maxLength={6} autoComplete="off" placeholder="예: 850315" /></label>
           </>) : (<>
           <label>
-            이메일
+            이메일 또는 아이디
             <input
-              type="email"
+              type="text"
               name="email"
               required
               autoComplete="username"
@@ -111,8 +124,33 @@ export function Login({
           <button disabled={busy}>{busy ? "확인 중…" : "로그인"}</button>
         </form>
         <p className="muted">
-          근로자는 현장 관리자가 보여 주는 가입 QR로 가입합니다. 비밀번호 재설정·SSO는 제공하지 않습니다. 관리자 계정은 운영자나 발급 권한을 받은 현장 관리자가 만듭니다.
+          근로자는 현장 관리자가 보여 주는 가입 QR로 가입합니다. 비밀번호 재설정·SSO는 제공하지 않습니다. 현장 관리자는 아래에서 가입을 신청하고 운영자가 승인합니다.
         </p>
+        {applied ? <StatusBar tone="success" role="status">{applied} 아이디로 가입을 신청했습니다. 운영자가 승인하면 위에서 로그인할 수 있습니다.</StatusBar> : (
+          <details className="ui-notice">
+            <summary>현장 관리자 가입 신청</summary>
+            <p className="muted">아이디와 비밀번호를 직접 정해 신청합니다. 운영자가 승인하면서 맡을 현장을 정해 줍니다.</p>
+            <form onSubmit={apply} aria-label="현장 관리자 가입 신청">
+              <label>이름<input name="name" required maxLength={100} autoComplete="name" /></label>
+              <label>아이디 (영문 소문자·숫자 4~30자)<input name="loginId" required minLength={4} maxLength={30} pattern="[a-z0-9][a-z0-9._\-]{3,29}" autoComplete="off" /></label>
+              <label>비밀번호 (12자 이상)<input name="password" type="password" required minLength={12} maxLength={128} autoComplete="new-password" /></label>
+              <label>소속(회사명)<input name="affiliation" required maxLength={100} /></label>
+              <label>맡을 현장 이름<input name="siteName" required maxLength={200} /></label>
+              <label>운영자에게 남길 말<input name="note" maxLength={500} /></label>
+              <fieldset>
+                <legend>동의와 서약</legend>
+                <label className="check"><input type="checkbox" checked={allAgreed} onChange={(e) => setAgreed(e.target.checked ? consentIds : [])} /> 모두 동의합니다</label>
+                {MANAGER_SIGNUP_CONSENT.items.map((i) => (
+                  <div key={i.id}>
+                    <label className="check"><input type="checkbox" checked={agreed.includes(i.id)} onChange={(e) => setAgreed(e.target.checked ? [...agreed, i.id] : agreed.filter((x) => x !== i.id))} /> {i.title}</label>
+                    <details><summary>내용 보기</summary><p className="muted">{i.text}</p></details>
+                  </div>
+                ))}
+              </fieldset>
+              <button disabled={busy || !allAgreed}>가입 신청</button>
+            </form>
+          </details>
+        )}
         {created && <StatusBar tone="success" role="status">{created}을(를) 운영자로 정했습니다. 위에서 로그인하세요.</StatusBar>}
         {setup?.needsOperator && setup.local && !created && (
           <details className="ui-notice" open>

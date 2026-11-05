@@ -4,7 +4,7 @@ import { randomUUID } from "node:crypto";
 const onePixel = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==", "base64");
 test("SC 사진대지: browser makes an EXIF-free JPEG display, labels it and prints by group", async ({ page }) => {
   await page.goto("/");
-  await page.getByLabel("이메일", { exact: true }).fill("test@example.test");
+  await page.getByLabel("이메일 또는 아이디", { exact: true }).fill("test@example.test");
   await page.getByLabel("비밀번호", { exact: true }).fill("synthetic-e2e-password");
   await page.getByRole("button", { name: "로그인", exact: true }).click();
   await expect(page.getByRole("heading", { name: "오늘", exact: true })).toBeVisible();

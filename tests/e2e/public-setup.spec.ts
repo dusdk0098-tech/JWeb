@@ -3,7 +3,7 @@ import { test, expect } from "@playwright/test";
 // the outside test are a synthetic world this spec changes through PUT /api/test/public-state.
 test("domain wizard: Cloudflare Tunnel first, direct under 고급; step checks with values to copy, apply only when every step is done", async ({ page }) => {
   await page.goto("/");
-  await page.getByLabel("이메일", { exact: true }).fill("test@example.test");
+  await page.getByLabel("이메일 또는 아이디", { exact: true }).fill("test@example.test");
   await page.getByLabel("비밀번호", { exact: true }).fill("synthetic-e2e-password");
   await page.getByRole("button", { name: "로그인", exact: true }).click();
   await expect(page.getByRole("heading", { name: "오늘", exact: true })).toBeVisible();

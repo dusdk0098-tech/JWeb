@@ -6,7 +6,7 @@ import { join } from "node:path";
 // 사진 보드 2단계: folder input (non-images skipped), zoom, dragging a circle (one undo step), TSV export and the 사진대지 print.
 test("사진 보드 2단계: folder, zoom, drag, TSV, two-per-page print", async ({ page }) => {
   await page.goto("/");
-  await page.getByLabel("이메일", { exact: true }).fill("test@example.test");
+  await page.getByLabel("이메일 또는 아이디", { exact: true }).fill("test@example.test");
   await page.getByLabel("비밀번호", { exact: true }).fill("synthetic-e2e-password");
   await page.getByRole("button", { name: "로그인", exact: true }).click();
   await expect(page.getByRole("heading", { name: "오늘", exact: true })).toBeVisible();

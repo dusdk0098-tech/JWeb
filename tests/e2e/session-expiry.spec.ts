@@ -4,7 +4,7 @@ import { randomUUID } from "node:crypto";
 // password there is still an ordinary error, and the same account's device drafts survive the new login.
 test("an expired session returns to login with a notice and keeps this account's device drafts", async ({ page }) => {
   await page.goto("/");
-  await page.getByLabel("이메일", { exact: true }).fill("test@example.test");
+  await page.getByLabel("이메일 또는 아이디", { exact: true }).fill("test@example.test");
   await page.getByLabel("비밀번호", { exact: true }).fill("synthetic-e2e-password");
   await page.getByRole("button", { name: "로그인", exact: true }).click();
   await expect(page.getByRole("heading", { name: "오늘", exact: true })).toBeVisible();
@@ -25,7 +25,7 @@ test("an expired session returns to login with a notice and keeps this account's
   await expect(page.getByRole("heading", { name: "로그인", exact: true })).toBeVisible();
   await expect(page.getByRole("status")).toContainText("로그인이 만료되어");
 
-  await page.getByLabel("이메일", { exact: true }).fill("test@example.test");
+  await page.getByLabel("이메일 또는 아이디", { exact: true }).fill("test@example.test");
   await page.getByLabel("비밀번호", { exact: true }).fill("wrong-synthetic-password");
   await page.getByRole("button", { name: "로그인", exact: true }).click();
   await expect(page.getByRole("alert")).toContainText("이메일 또는 비밀번호를 확인해 주세요.");

@@ -36,9 +36,12 @@ export const meetingInput = z
 export type MeetingInput = z.infer<typeof meetingInput>;
 export const credentials = z
   .object({
+    // e-mail, or a login ID from 현장 관리자 가입 신청 (server/manager-signup.ts LOGIN_ID)
     email: z
-      .email()
+      .string()
+      .trim()
       .max(254)
+      .refine((v) => z.email().safeParse(v).success || /^[a-z0-9][a-z0-9._-]{3,29}$/i.test(v), "이메일 또는 아이디를 확인하세요.")
       .transform((v) => v.toLowerCase()),
     password: z.string().min(1).max(128),
   })

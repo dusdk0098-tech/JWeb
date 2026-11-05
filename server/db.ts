@@ -7,6 +7,7 @@ import { migrateIncidents } from "./incidents.js";
 import { migratePermits } from "./permits.js";
 import { migrateQualifications } from "./qualifications.js";
 import { migrateSiteSignup } from "./site-signup.js";
+import { migrateManagerSignup } from "./manager-signup.js";
 import { migrateEducationReviews } from "./education-catalog-review.js";
 import { migratePhotoBoards } from "./photo-board.js";
 import { migrateTbmJoin, migrateTbmSignatures } from "./tbm-join.js";
@@ -241,6 +242,7 @@ PRAGMA user_version=1;`);
       if (version < 77) migratePermits(db);
       if (version < 78) migrateQualifications(db);
       if (version < 79) migrateSiteSignup(db);
+      if (version < 80) migrateManagerSignup(db);
     });
   } catch (error) {
     db.close();

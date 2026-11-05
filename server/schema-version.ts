@@ -1,2 +1,2 @@
 // Current supported schema only. Historical migration numbers stay literal.
-export const CURRENT_SCHEMA_VERSION = 79;
+export const CURRENT_SCHEMA_VERSION = 80;

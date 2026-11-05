@@ -19,6 +19,7 @@ import { registerEducationReviews } from "./education-catalog-review.js";
 import { registerPhotoBoards, isPhotoBoardUpload } from "./photo-board.js";
 import { registerTbmJoin, registerTbmJoinPublic } from "./tbm-join.js";
 import { registerSiteJoinLinks, registerSiteSignupPublic, registerWorkerProfile } from "./site-signup.js";
+import { registerManagerSignupPublic, registerManagerSignups } from "./manager-signup.js";
 import { registerAccounts, registerSetup } from "./accounts.js";
 import { registerAds, type AdsConfig } from "./ads.js";
 import { registerWorkPlanFormChecklists } from "./work-plan-form-checklist.js";
@@ -212,11 +213,13 @@ export async function createApp(db: Db, config: AppConfig) {
   registerPublicSetup(app, db, publicRuntime, config.secret, { ...defaultSetupDeps(Number(new URL(config.origin).port) || 80), ...config.publicSetup });
   registerTbmJoinPublic(app, db);
   registerSiteSignupPublic(app, db); // 근로자 QR 가입, before the sign-in gate
+  registerManagerSignupPublic(app, db); // 현장 관리자 가입 신청, before the sign-in gate
   registerSetup(app, db); // anonymous first-operator route, before the sign-in gate
   await registerAuthentication(app, db, () => !!config.ads);
   const { access, mutate } = siteOperations(db);
   registerAccounts(app, db, { access, mutate });
   registerWorkerProfile(app, db);
+  registerManagerSignups(app, db, { access, mutate });
   app.locals.adsRefresh = registerAds(app, db, config.ads).refresh;
   registerAttendanceRoutes(app, db, { access, mutate });
   registerTbmRoutes(app, db, { access, mutate });
@@ -308,6 +311,8 @@ export async function createApp(db: Db, config: AppConfig) {
     ),
   );
   app.post("/api/sites", (req, res) => {
+    if (db.prepare("SELECT 1 FROM worker_accounts WHERE user_id=?").get(req.session.userId!))
+      throw new HttpError(403, "근로자 계정은 현장을 만들 수 없습니다. 현장 관리자에게 가입 QR을 받으세요.");
     const input = siteInput.parse(req.body);
     mutate(
       req,
