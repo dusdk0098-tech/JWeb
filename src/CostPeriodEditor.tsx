@@ -173,6 +173,27 @@ export function CostPeriodEditor({
       setBusy(false);
     }
   }
+  // Keeps every input; the next save goes against the latest version.
+  async function refresh() {
+    if (busy) return;
+    setBusy(true);
+    setError("");
+    try {
+      setRecord(await api<CostPeriod>(base));
+      setTick((v) => v + 1);
+      if (editing) {
+        const row = await api<CostExpense>(`${base}/expenses/${editing.id}`);
+        if (row.version !== editing.version) {
+          setEditing(row);
+          setError(`수정 중인 지출이 다른 곳에서 바뀌었습니다(현재 ${row.description} · ${row.quantity} × ${row.unit_price_won}원). 저장하면 지금 입력으로 덮어씁니다.`);
+        }
+      }
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  }
   function edit(row: CostExpense | null, copy = false) {
     if (!guard.canLeave()) return;
     setBudget(null);
@@ -255,10 +276,10 @@ export function CostPeriodEditor({
       <Notice summary="직접 입력하는 기록입니다. 금액은 반올림하지 않습니다.">{costWarning}</Notice>
       {selectedExpense&&<CostSelectedExpense key={`${record.id}:${selectedExpense.id}`} base={base} selection={selectedExpense}/>}
       {error && (
-        <p role="alert">
-          {error} 입력을 보존했습니다. 충돌이면 다른 창의 변경을 확인하고
-          목록에서 다시 여세요.
-        </p>
+        <div role="alert">
+          <p>{error} 입력을 보존했습니다. 다른 곳의 변경과 충돌했다면 아래 버튼으로 최신본을 받은 뒤 다시 저장하세요.</p>
+          <button className="secondary" disabled={busy} onClick={() => void refresh()}>입력 유지·최신본 받기</button>
+        </div>
       )}
       <div className="tool-row" role="group" aria-label="월 도구">
       <button className="secondary" disabled={busy} onClick={() => { if(guard.canLeave()) {setForm(null);setBudget(null);setReason("");setEvidence(true);} }}>미검사 원본·동일 월 지출 연결</button>

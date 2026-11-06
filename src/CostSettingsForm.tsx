@@ -80,6 +80,17 @@ export function CostSettingsForm({
       setBusy(false);
     }
   }
+  async function refresh() {
+    setBusy(true);
+    setError("");
+    try {
+      onSaved(await api<CostPeriod>(base));
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  }
   return (
     <section>
       <button disabled={busy} onClick={() => guard.canLeave() && onClose()}>
@@ -90,7 +101,7 @@ export function CostSettingsForm({
         출력에 반복되는 기본 정보입니다. 마감하면 마감본에 함께 고정되고, 다음 월 이월 때 복사됩니다(작성일은 그 달 말일).
         {!open && " 마감된 원장은 수정할 수 없습니다."}
       </p>
-      {error && <p role="alert">{error} 입력을 보존했습니다.</p>}
+      {error && <div role="alert"><p>{error} 입력을 보존했습니다.</p><button className="secondary" disabled={busy} onClick={() => void refresh()}>입력 유지·최신본 받기</button></div>}
       {notice && <p role="status">{notice}</p>}
       <fieldset disabled={busy || !open}>
         {fields.map(([k, label, kind]) => {

@@ -20,6 +20,8 @@ import {
   costTotals,
   nextCostMonth,
   readCostSettings,
+  costLaborKinds,
+  costExpenseDetails,
   type CostCategory,
   type CostSnapshot,
 } from "./cost-model.js";
@@ -273,6 +275,8 @@ export function registerCostPeriods(
           reason: v.reason,
           policy: "exact-six-decimal-whole-won-price-v1",
           settings: readCostSettings(db, id),
+          laborKinds: costLaborKinds(db, id),
+          details: costExpenseDetails(db, id),
         };
         db.prepare("INSERT INTO cost_closures VALUES(?,?,?,?,?,?)").run(
           closeId,

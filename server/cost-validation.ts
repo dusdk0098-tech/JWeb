@@ -55,7 +55,7 @@ export const expenseEdit = costReason.extend({ expense: expenseInput, laborKind,
 const settingText = z.string().trim().max(200),
   settingDate = z.union([z.literal(""), date]),
   settingWon = z.union([z.literal(""), z.string().regex(/^(0|[1-9]\d{0,14})$/, "원 단위 정수로 입력하세요.")]),
-  settingPercent = z.union([z.literal(""), z.string().regex(/^(100(\.0{1,2})?|\d{1,2}(\.\d{1,2})?)$/, "0~100 사이, 소수 2자리까지 입력하세요.")]);
+  settingPercent = z.union([z.literal(""), z.string().regex(/^(100(\.0{1,2})?|(0|[1-9]\d?)(\.\d{1,2})?)$/, "0~100 사이, 앞자리 0 없이 소수 2자리까지 입력하세요.")]);
 export const costSettings = z
   .object({
     writtenDate: settingDate,

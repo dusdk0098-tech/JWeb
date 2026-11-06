@@ -21,7 +21,7 @@ export function CostEvidence({ base, onClose, onDirtyChange, onBusyChange }: {
     [eventOffset, setEventOffset] = useState(0), [board, setBoard] = useState<Board | null>(null), [dirtyLabels, setDirtyLabels] = useState<string[]>([]);
   const input = useRef<HTMLInputElement>(null), guard = useDraftGuard(!!file || editing !== null || dirtyLabels.length > 0, busy, onDirtyChange, onBusyChange);
   useEffect(() => {
-    let active = true; setLoading(true); setConfirm(false); setError(""); setView(null); setEvents(null); setExpenses(null); setBoard(null);
+    let active = true; setLoading(true); setConfirm(false); setError(""); // keeps the shown data: clearing it would unmount labels being typed
     Promise.all([api<Evidence>(base + "/evidence"), api<Page<CostExpense>>(base + `/expenses?offset=${offset}`), api<Page<Event>>(base + `/evidence/events?offset=${eventOffset}`), api<Board>(base + "/photo-board")])
       .then(([v, e, h, b]) => { if (active) { setView(v); setExpenses(e); setEvents(h); setBoard(b); } })
       .catch(e => { if (active) setError(e.message); }).finally(() => { if (active) setLoading(false); });
@@ -87,8 +87,8 @@ export function CostEvidence({ base, onClose, onDirtyChange, onBusyChange }: {
         <a href={"/api" + base + `/evidence/files/${f.id}/download`}>미검사 원본 다운로드</a>
         {f.format !== "application/pdf" && (board?.photos.some(p => p.attachmentId === f.id)
           ? (() => { const photo = board.photos.find(p => p.attachmentId === f.id)!, group = board.photos.filter(p => p.groupName === photo.groupName), at = group.indexOf(photo);
-            return <CostPhotoLabel key={`${f.id}:${photo.labelVersion}`} base={base} photo={photo} open={view.period.status === "open"} disabled={busy || loading || !!file || editing !== null} onSaved={() => setTick(v => v + 1)} onDirty={labelDirty} keyFor={guard.key}
-              first={at === 0} last={at === group.length - 1} onMove={(d) => void movePhoto(group, at, d)}/>; })()
+            return <CostPhotoLabel key={f.id} base={base} photo={photo} open={view.period.status === "open"} disabled={busy || loading || !!file || editing !== null} onSaved={() => setTick(v => v + 1)} onDirty={labelDirty} keyFor={guard.key}
+              first={at === 0} last={at === group.length - 1} moveLocked={dirtyLabels.length > 0} onMove={(d) => void movePhoto(group, at, d)}/>; })()
           : view.period.status === "open" && <button disabled={busy || loading || !!file || editing !== null} onClick={() => void makeDisplay(f.id)}>사진대지 표시본 만들기</button>)}
         <p>활성 연결 {links.length}개 {links.length === 0 ? "(어느 지출도 입증하지 않는 미연결 원본)" : ""}</p>
         {links.map(l => <p key={l.expenseId}>지출 {l.expenseId} · 연결 당시 {l.source.description} (v{l.source.version}) · 현재 v{l.currentVersion}/{l.currentStatus === "active" ? "유효행" : "취소행"} · {l.changedSinceLink ? "연결 뒤 변경 있음" : "연결 당시와 같은 행"}</p>)}

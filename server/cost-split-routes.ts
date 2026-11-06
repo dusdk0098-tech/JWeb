@@ -8,6 +8,10 @@ import {
   getExpense,
   costExpenses,
   costPeriodView,
+  costLaborKinds,
+  costExpenseDetails,
+  saveLaborKind,
+  saveExpenseDetails,
   insertExpense,
 } from "./cost-model.js";
 import { costReason } from "./cost-validation.js";
@@ -126,9 +130,13 @@ export function registerCostSplits(
           v.reason,
           getExpense(db, id, expenseId),
         );
-        const saved = [];
+        const saved = [],
+          laborKind = costLaborKinds(db, id)[expenseId],
+          details = costExpenseDetails(db, id)[expenseId];
         for (const e of children) {
           const childId = insertExpense(db, id, e, actor.id, now);
+          saveLaborKind(db, childId, laborKind, now);
+          saveExpenseDetails(db, childId, details, now);
           const child = getExpense(db, id, childId);
           saved.push(child);
           period = bumpCost(db, period);

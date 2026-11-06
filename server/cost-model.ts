@@ -213,6 +213,9 @@ export type CostSnapshot = {
   policy: "exact-six-decimal-whole-won-price-v1";
   // SC 현장 설정; absent before schema 57. Kept out of period so period comparisons stay byte-identical.
   settings?: CostSettings | null;
+  // 인건비 구분·항목별 추가필드 for the legal forms; absent on closures made before they were fixed here.
+  laborKinds?: Record<string, string>;
+  details?: Record<string, Record<string, string>>;
 };
 export function nextCostMonth(month: string) {
   const [year, m] = month.split("-").map(Number);
