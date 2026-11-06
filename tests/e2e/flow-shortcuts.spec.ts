@@ -17,8 +17,8 @@ test("first-run steps, previous-TBM roster copy, journal capture-and-archive", a
   // home: steps until the first TBM
   const steps = page.locator("section.home-steps");
   await expect(steps.getByText("명부 등록")).toBeVisible();
-  await expect(steps.getByRole("button", { name: "첫 TBM 쓰러 가기" })).toBeVisible();
-  await steps.getByRole("button", { name: "첫 TBM 쓰러 가기" }).click();
+  await expect(steps.getByRole("button", { name: "첫 TBM 쓰기" })).toBeVisible();
+  await steps.getByRole("button", { name: "첫 TBM 쓰기" }).click();
   // first TBM with one participant
   await page.getByRole("button", { name: "+ TBM 초안", exact: true }).click();
   await page.getByLabel("TBM 제목 *", { exact: true }).fill("첫 TBM");

@@ -19,6 +19,7 @@
   --ink-on-primary: #ffffff;
   /* 선 */
   --border: #59666c;
+  --border-control: #8f9a9d; /* 보조 버튼: 입력칸보다 조용하게 */
   --border-quiet: #b9c1c3;
   /* 주 동작 */
   --primary: #005ec4;

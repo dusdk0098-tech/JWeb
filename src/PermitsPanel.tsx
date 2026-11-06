@@ -46,7 +46,7 @@ export function PermitsPanel({ site, user, openId, onDirtyChange, onBusyChange }
           <StatusChip tone={STATUS[r.status][0]}>{STATUS[r.status][1]}</StatusChip>
         </button>
       ))}
-      {page && <div className="tool-row"><button className="secondary" disabled={!offset} onClick={() => setOffset(offset - 50)}>이전 50</button><button className="secondary" disabled={!page.hasMore} onClick={() => setOffset(offset + 50)}>다음 50</button></div>}
+      {page && (offset > 0 || page.hasMore) && <div className="tool-row"><button className="secondary" disabled={!offset} onClick={() => setOffset(offset - 50)}>이전 50</button><button className="secondary" disabled={!page.hasMore} onClick={() => setOffset(offset + 50)}>다음 50</button></div>}
     </section>
   );
   const status = open?.status ?? "draft", manager = site.role === "manager", mine = !open || open.requesterId === user.id;
