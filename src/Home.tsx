@@ -1,7 +1,6 @@
 import { useEffect, useState } from "react";
 import { api, type Site, type User } from "./api";
-import { NavIcon } from "./AppShell";
-import { StatusBar, StatusChip, UiIcon, ICON } from "./ui";
+import { StatusBar, StatusChip } from "./ui";
 // 홈 = 오늘 할 일 (UI 개편 PR 2). 기존 목록 API를 모아 보여 주기만 한다 — 서버 변경 없음, 판단·집계 없음.
 // 내 할 일 (검토 2차): 각 화면의 업무함 API(신고·위험성평가·점검 일정·회의 후속조치, 관리자면 검토 대기까지)를 그대로 모은다.
 // shortcut: 13 list calls on open; a summary endpoint when a real site makes this slow.
@@ -99,44 +98,44 @@ export function Home({ site, user, ads, operatorLocal, onOpen }: { site: Site | 
     ...(data?.inspections.filter((i) => i.status === "draft" && mine(i)).map((i) => ({ kind: "점검", id: i.id, tab: "inspections", when: i.body?.date ?? "", title: "작성 중인 점검" })) ?? []),
   ].sort((a, b) => b.when.localeCompare(a.when)).slice(0, 6);
   const openPeriod = data?.periods.find((p) => p.status === "open");
-  const card = (tab: string, label: string, value: string, tone: "signal" | "draft" | "neutral", icon: string) => (
-    <button type="button" className={`home-card tone-${tone}`} onClick={() => tab ? onOpen(tab) : document.getElementById("home-tasks")?.scrollIntoView({ behavior: "smooth" })}>
-      <span className="home-card-label"><NavIcon name={icon} size={16} />{label}</span>
-      <span className="home-card-value">{value}</span>
+  // 오늘 현황: 사진 보드판과 같은 항목·내용 표. 다음에 할 일 한 줄만 파란색이다.
+  const journalOpen = !journalToday || journalToday.status === "draft", next = !data ? "" : !tbmToday.length ? "tbm" : journalOpen ? "daily" : tasks.length ? "tasks" : "";
+  const row = (id: string, label: string, value: string, go: string, state: "" | "open" | "late" = "") => (
+    <button type="button" className="field-row" onClick={() => id === "tasks" ? document.getElementById("home-tasks")?.scrollIntoView({ behavior: "smooth" }) : onOpen(id)}>
+      <span className="field-label">{label}</span>
+      <span className={`field-value${state ? ` is-${state}` : ""}`}>{value}</span>
+      <span className={`field-go${next === id ? " is-next" : ""}`}>{go}</span>
     </button>
   );
   // 첫 실행 안내 (편의 4): shown until the site has its first TBM; each step opens the screen that does it.
   const steps = data && data.tbm.length === 0 ? [
     { label: "현장 만들기", done: true, tab: "sites", go: "", sub: "" },
-    { label: "명부 등록", done: data.workers > 0, tab: "attendance", go: "명부 등록하러 가기", sub: "workers" },
-    ...(data.members !== null ? [{ label: "구성원 추가", done: data.members > 1, tab: "sites", go: "구성원 추가하러 가기", sub: "" }] : []),
-    { label: "첫 TBM", done: false, tab: "tbm", go: "첫 TBM 쓰러 가기", sub: "" },
+    { label: "명부 등록", done: data.workers > 0, tab: "attendance", go: "등록", sub: "workers" },
+    ...(data.members !== null ? [{ label: "구성원 추가", done: data.members > 1, tab: "sites", go: "추가", sub: "" }] : []),
+    { label: "첫 TBM", done: false, tab: "tbm", go: "쓰기", sub: "" },
   ] : [];
   const dueText = (t: Task) => !t.due ? "" : (t.late ? "기한 지남 · " : "") + (t.due === d ? "오늘" : KOR_DATE(t.due)) + " · ";
   return (
     <section className="home">
       <div className="home-head">
         <h1>오늘</h1>
-        <span className="muted">{KOR_DATE(d)} · {site.name}</span>
+        <span className="muted">{KOR_DATE(d)}</span>
       </div>
       {operatorLocal && <PublicStatusLine onOpen={onOpen} />}
       {signupLine}
       {error && <p className="error" role="alert">{error}</p>}
-      <div className="home-cards">
-        {card("tbm", "오늘 TBM", tbmToday.length ? `${tbmToday.length}건 기록됨` : "아직 없음 · 시작하기", tbmToday.length ? "neutral" : "signal", "tbm")}
-        {card("daily", "오늘 안전업무일지", journalToday ? (journalToday.status === "draft" ? "작성 중 · 이어 쓰기" : "보관됨") : "아직 없음 · 쓰기", journalToday ? "draft" : "signal", "journal")}
-        {card("", "내 할 일", !data ? "조회 중" : tasks.length ? `${tasks.length}건${late ? ` · 기한 지남 ${late}건` : ""}` : "없음", late ? "signal" : tasks.length ? "draft" : "neutral", "inspection")}
-        {site.role === "manager" && card("costs", "산업안전보건관리비", openPeriod ? `${openPeriod.month} 작성 중` : "열린 월 없음", openPeriod ? "draft" : "neutral", "cost")}
+      <div className="field-board" role="group" aria-label="오늘 현황">
+        {row("tbm", "오늘 TBM", !data ? "조회 중" : tbmToday.length ? `${tbmToday.length}건 기록됨` : "아직 없음", tbmToday.length ? "보기" : "TBM 시작", data && !tbmToday.length ? "open" : "")}
+        {row("daily", "오늘 안전업무일지", !data ? "조회 중" : !journalToday ? "아직 없음" : journalToday.status === "draft" ? "작성 중" : "보관됨", !journalToday ? "일지 쓰기" : journalToday.status === "draft" ? "이어 쓰기" : "보기", data && !journalToday ? "open" : "")}
+        {row("tasks", "내 할 일", !data ? "조회 중" : tasks.length ? `${tasks.length}건${late ? ` · 기한 지남 ${late}건` : ""}` : "없음", "보기", late ? "late" : "")}
+        {site.role === "manager" && row("costs", "산업안전보건관리비", openPeriod ? `${openPeriod.month} 작성 중` : "열린 월 없음", "보기")}
       </div>
-      <section className="home-list">
-        <h2>바로 가기</h2>
-        <div className="home-actions">
-          <button type="button" onClick={() => onOpen("tbm")}><UiIcon d={ICON.check} />TBM 시작</button>
-          <button type="button" className="secondary" onClick={() => onOpen("inspections")}>점검 작성</button>
-          <button type="button" className="secondary" onClick={() => onOpen("hazards")}>신고 접수</button>
-          <button type="button" className="secondary" onClick={() => onOpen("photoboard")}>사진 올리기</button>
-        </div>
-      </section>
+      <div className="home-actions" role="group" aria-label="바로 가기">
+        {next !== "tbm" && <button type="button" className="secondary" onClick={() => onOpen("tbm")}>TBM 시작</button>}
+        <button type="button" className="secondary" onClick={() => onOpen("inspections")}>점검 작성</button>
+        <button type="button" className="secondary" onClick={() => onOpen("hazards")}>신고 접수</button>
+        <button type="button" className="secondary" onClick={() => onOpen("photoboard")}>사진 올리기</button>
+      </div>
       {steps.length > 0 && (
         <section className="home-list home-steps">
           <h2>시작하기 <span className="muted">첫 TBM을 쓰면 이 안내는 사라집니다</span></h2>
@@ -144,7 +143,7 @@ export function Home({ site, user, ads, operatorLocal, onOpen }: { site: Site | 
             <div key={st.label} className="home-row">
               <span className="home-row-kind">{i + 1}</span>
               <span className="home-row-title">{st.label}</span>
-              {st.done ? <StatusChip tone="done">완료</StatusChip> : <button type="button" className="secondary" onClick={() => onOpen(st.tab, st.sub ? { sub: st.sub } : undefined)}>{st.go}</button>}
+              {st.done ? <StatusChip tone="done">완료</StatusChip> : <button type="button" className="secondary" aria-label={`${st.label} ${st.go}`} onClick={() => onOpen(st.tab, st.sub ? { sub: st.sub } : undefined)}>{st.go}</button>}
             </div>
           ))}
         </section>

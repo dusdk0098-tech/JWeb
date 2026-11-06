@@ -93,7 +93,7 @@ export function QualificationsPanel({ site, onDirtyChange, onBusyChange }: { sit
           {manager && voiding !== q.id && <button type="button" className="secondary" onClick={() => { setVoiding(q.id); setReason(""); }}>무효 처리…</button>}
         </article>
       ))}
-      {page && <div className="tool-row"><button className="secondary" disabled={!offset} onClick={() => setOffset(offset - 50)}>이전 50</button><button className="secondary" disabled={!page.hasMore} onClick={() => setOffset(offset + 50)}>다음 50</button></div>}
+      {page && (offset > 0 || page.hasMore) && <div className="tool-row"><button className="secondary" disabled={!offset} onClick={() => setOffset(offset - 50)}>이전 50</button><button className="secondary" disabled={!page.hasMore} onClick={() => setOffset(offset + 50)}>다음 50</button></div>}
     </section>
   );
 }

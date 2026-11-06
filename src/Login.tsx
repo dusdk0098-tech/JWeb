@@ -80,7 +80,11 @@ export function Login({
         <img src="/brand/yweb-mark.svg" alt="" width={48} height={48} />
         <span className="brand">Y웹</span>
         <p>현장 안전 기록</p>
-        <p className="muted">TBM · 점검 · 안전업무일지 · 작업계획 · 산업안전보건관리비를 한곳에서.</p>
+        <dl className="field-board login-board">
+          {[["매일", "TBM · 점검 · 안전업무일지"], ["문서", "작업계획 · 위험성평가 · 회의록"], ["비용", "산업안전보건관리비"], ["사진", "사진대지"]].map(([k, v]) => (
+            <div className="field-row" key={k}><dt className="field-label">{k}</dt><dd className="field-value">{v}</dd></div>
+          ))}
+        </dl>
       </div>
       <section className="login-form panel">
         <h2>로그인</h2>
@@ -124,7 +128,7 @@ export function Login({
           <button disabled={busy}>{busy ? "확인 중…" : "로그인"}</button>
         </form>
         <p className="muted">
-          근로자는 현장 관리자가 보여 주는 가입 QR로 가입합니다. 비밀번호 재설정·SSO는 제공하지 않습니다. 현장 관리자는 아래에서 가입을 신청하고 운영자가 승인합니다.
+          근로자는 현장 관리자가 보여 주는 가입 QR로 가입합니다. 비밀번호를 잊으면 운영자에게 초기화를 요청하세요.
         </p>
         {applied ? <StatusBar tone="success" role="status">{applied} 아이디로 가입을 신청했습니다. 운영자가 승인하면 위에서 로그인할 수 있습니다.</StatusBar> : (
           <details className="ui-notice">

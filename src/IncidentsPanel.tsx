@@ -49,7 +49,7 @@ export function IncidentsPanel({ site, openId, onDirtyChange, onBusyChange }: { 
           {r.status === "confirmed" ? <StatusChip tone="done">확정</StatusChip> : <StatusChip tone="draft">작성 중</StatusChip>}
         </button>
       ))}
-      {page && <div className="tool-row"><button className="secondary" disabled={!offset} onClick={() => setOffset(offset - 50)}>이전 50</button><button className="secondary" disabled={!page.hasMore} onClick={() => setOffset(offset + 50)}>다음 50</button></div>}
+      {page && (offset > 0 || page.hasMore) && <div className="tool-row"><button className="secondary" disabled={!offset} onClick={() => setOffset(offset - 50)}>이전 50</button><button className="secondary" disabled={!page.hasMore} onClick={() => setOffset(offset + 50)}>다음 50</button></div>}
     </section>
   );
   const editable = !open || (open.status === "draft" && site.role !== "viewer"), manager = site.role === "manager";
