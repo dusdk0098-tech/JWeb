@@ -16,7 +16,7 @@ export function boundedCostOutput(text:string) {
   if(Buffer.byteLength(text)>4*1024*1024) throw new HttpError(409,"출력 전체 4MiB 한도 초과. 기존 고정 원문 또는 개별 자료를 확인하세요. 일부만 최신으로 표시하지 않습니다.");
   return text;
 }
-function fixed(db:Db,site:string,period:string,id:string,month:string) {
+export function fixed(db:Db,site:string,period:string,id:string,month:string) {
   const row=db.prepare('SELECT body,hash FROM cost_closures WHERE id=? AND period_id=?').get(id,period) as {body:string;hash:string}|undefined;
   if(!row)throw new HttpError(404,'선택한 마감본을 찾을 수 없습니다.');
   boundedCostOutput(row.body);

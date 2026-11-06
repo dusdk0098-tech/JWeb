@@ -11,13 +11,16 @@ type Form = Pick<PhotoLabel, "groupName" | "takenDate" | "description" | "includ
 const formOf = (p: PhotoLabel): Form => ({ groupName: p.groupName, takenDate: p.takenDate, description: p.description, included: p.included, rotation: p.rotation, circles: p.circles });
 // SC 사진대지 항목: the original photo form (분류·촬영일·내용), 포함 instead of delete (originals are retained), and — 보완 —
 // 90° rotation and circle highlights drawn by the same canvas as the photo board, with undo/redo until saved.
-export function CostPhotoLabel({ base, photo, open, disabled, onSaved, onDirty, keyFor, onMove, first, last }: {
+export function CostPhotoLabel({ base, photo, open, disabled, onSaved, onDirty, keyFor, onMove, first, last, moveLocked }: {
   base: string; photo: PhotoLabel; open: boolean; disabled: boolean; onSaved: () => void; onDirty: (id: string, v: boolean) => void; keyFor: (path: string, body: unknown) => string;
-  onMove: (delta: -1 | 1) => void; first: boolean; last: boolean;
+  onMove: (delta: -1 | 1) => void; first: boolean; last: boolean; moveLocked: boolean;
 }) {
   const [form, setForm] = useState<Form>(formOf(photo)), [past, setPast] = useState<Form[]>([]), [future, setFuture] = useState<Form[]>([]),
     [busy, setBusy] = useState(false), [error, setError] = useState(""), [img, setImg] = useState<HTMLImageElement>(), [selected, setSelected] = useState<number | null>(null);
-  const dirty = JSON.stringify(form) !== JSON.stringify(formOf(photo)), writable = open && !disabled && !busy;
+  // loaded = the version this form was opened from: a refresh must not swap it under typed input, and a stale save gets the server's 409.
+  const [loaded, setLoaded] = useState(photo);
+  const dirty = JSON.stringify(form) !== JSON.stringify(formOf(loaded)), writable = open && !disabled && !busy;
+  if (!dirty && photo.labelVersion !== loaded.labelVersion) { setLoaded(photo); setForm(formOf(photo)); setPast([]); setFuture([]); }
   useEffect(() => { onDirty(photo.attachmentId, dirty); }, [photo.attachmentId, dirty, onDirty]);
   useEffect(() => {
     const i = new Image();
@@ -29,8 +32,12 @@ export function CostPhotoLabel({ base, photo, open, disabled, onSaved, onDirty, 
   const setScene = (s: SceneItem) => change({ ...form, rotation: s.rotation, circles: s.circles });
   async function save() {
     setBusy(true); setError("");
-    const path = base + `/evidence/files/${photo.attachmentId}/display/label`, body = { labelVersion: photo.labelVersion, ...form };
-    try { await api(path, "PUT", body, keyFor(path, body)); onDirty(photo.attachmentId, false); onSaved(); } catch (e) { setError((e as Error).message); } finally { setBusy(false); }
+    const path = base + `/evidence/files/${photo.attachmentId}/display/label`, body = { labelVersion: loaded.labelVersion, ...form };
+    try {
+      const fresh = (await api<{ photos: PhotoLabel[] }>(path, "PUT", body, keyFor(path, body))).photos.find((p) => p.attachmentId === photo.attachmentId);
+      if (fresh) { setLoaded(fresh); setForm(formOf(fresh)); setPast([]); setFuture([]); }
+      onDirty(photo.attachmentId, false); onSaved();
+    } catch (e) { setError((e as Error).message); } finally { setBusy(false); }
   }
   return <fieldset disabled={!open || disabled || busy}><legend>사진대지 항목</legend>
     {error && <p role="alert">{error} 입력은 유지됩니다.</p>}
@@ -50,7 +57,7 @@ export function CostPhotoLabel({ base, photo, open, disabled, onSaved, onDirty, 
     <label>내용<input maxLength={200} value={form.description} onChange={e => change({ ...form, description: e.target.value })}/></label>
     <label><input type="checkbox" checked={form.included} onChange={e => change({ ...form, included: e.target.checked })}/>사진대지에 포함</label>
     <button disabled={!dirty} onClick={() => void save()}>사진대지 항목 저장</button>
-    <button disabled={dirty || first} onClick={() => onMove(-1)}>분류 안에서 위로</button>
-    <button disabled={dirty || last} onClick={() => onMove(1)}>분류 안에서 아래로</button>
+    <button disabled={dirty || first || moveLocked} onClick={() => onMove(-1)}>분류 안에서 위로</button>
+    <button disabled={dirty || last || moveLocked} onClick={() => onMove(1)}>분류 안에서 아래로</button>
   </fieldset>;
 }

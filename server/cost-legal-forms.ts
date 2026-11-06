@@ -1,9 +1,11 @@
 import type { Express } from "express";
+import { z } from "zod";
 import type { Db } from "./db.js";
 import { HttpError, type SiteOperations } from "./site-operations.js";
 import { costExpenses, costPeriodView, getCostPeriod, type CostCategory, type CostExpense } from "./cost-model.js";
 import { moneyUnits, decimalText } from "./cost-money.js";
 import { percentText } from "./cost-dashboard.js";
+import { fixed as fixedClosure } from "./cost-output.js";
 import { escapeHtml as e } from "./print.js";
 // 법정 서식 A안 1단계 (docs/LEGAL_FORMS_PROPOSAL.md): 표지·내역집계표·사용내역(갑)·총괄 as HTML,
 // same document order, page capacity and values as the original PEDIT-SC (src/excel-summary-settings.js).
@@ -27,16 +29,23 @@ const krMonth = (m: string) => `${m.slice(0, 4)}년 ${Number(m.slice(5, 7))}월`
 // original spacedName: 2~4 Hangul syllables are spaced ("홍길동" -> "홍 길 동").
 const spacedName = (v: string) => { const t = v.replace(/\s/g, ""); return /^[가-힣]{2,4}$/.test(t) ? t.split("").join(" ") : v; };
 const shortDate = (d: string) => (d ? d.slice(2).replaceAll("-", ".") : "");
-export function legalForms(db: Db, site: string, id: string) {
-  const view = costPeriodView(db, getCostPeriod(db, site, id)), s = view.settings, codes = byCode(view.totals.byCategory);
+export function legalForms(db: Db, site: string, id: string, closureId?: string) {
+  const row = getCostPeriod(db, site, id), live = costPeriodView(db, row),
+    closure = closureId ? fixedClosure(db, site, id, closureId, row.month).body : null;
+  // A closure prints what was fixed at that close, never today's values.
+  const view = closure ? { ...live, status: "closed" as const, categories: closure.period.categories, totals: closure.totals, settings: closure.settings ?? null, laborKinds: closure.laborKinds ?? {}, details: closure.details ?? {} } : live;
+  const s = view.settings, codes = byCode(view.totals.byCategory);
   if (!s) throw new HttpError(409, "현장 설정을 입력한 뒤 출력하세요.");
   const budget = moneyUnits(s.safetyBudgetWon || "0");
   // 내역집계표: every ledger month of this site up to this month, current amount per SC code.
   const periods = db.prepare("SELECT * FROM cost_periods WHERE site_id=? AND month<=? ORDER BY month").all(site, view.month) as Parameters<typeof costPeriodView>[1][];
-  let grand = 0n, code8 = 0n;
-  const columnTotals = new Map<number, bigint>(SUMMARY_CODES.map((c) => [c, 0n]));
+  const totalsOf = (p: (typeof periods)[number]) => (p.id === id ? view.totals : costPeriodView(db, p).totals).byCategory;
+  // 이전 누계: the first ledger's 초기 누계 has no month row, so it gets its own row and counts toward 계 and 사용률.
+  const first = byCode(totalsOf(periods[0])), openings = SUMMARY_CODES.map((c) => moneyUnits(first.get(c)?.opening ?? "0"));
+  let grand = openings.reduce((a, b) => a + b, 0n), code8 = moneyUnits(first.get(8)?.opening ?? "0");
+  const columnTotals = new Map<number, bigint>(SUMMARY_CODES.map((c, i) => [c, openings[i]]));
   const months = periods.map((p) => {
-    const m = byCode(costPeriodView(db, p).totals.byCategory), amounts = SUMMARY_CODES.map((c) => moneyUnits(m.get(c)?.current ?? "0"));
+    const m = byCode(totalsOf(p)), amounts = SUMMARY_CODES.map((c) => moneyUnits(m.get(c)?.current ?? "0"));
     code8 += moneyUnits(m.get(8)?.current ?? "0");
     amounts.forEach((a, i) => columnTotals.set(SUMMARY_CODES[i], columnTotals.get(SUMMARY_CODES[i])! + a));
     const total = amounts.reduce((a, b) => a + b, 0n);
@@ -44,14 +53,15 @@ export function legalForms(db: Db, site: string, id: string) {
     return { month: p.month, amounts, total };
   });
   const rows = [...codes.values()].sort((a, b) => a.scCode! - b.scCode!), t = view.totals.total;
-  const expenses = costExpenses(db, id).filter((x) => x.status === "active");
-  return { view, s, budget, months, grand, code8, columnTotals, rows, t, codes, expenses };
+  const expenses = (closure?.expenses ?? costExpenses(db, id)).filter((x) => x.status === "active");
+  return { view, s, budget, months, openings, grand, code8, columnTotals, rows, t, codes, expenses, closure };
 }
 export function printLegalForms(f: ReturnType<typeof legalForms>) {
-  const { view, s, budget, months, grand, code8, columnTotals, rows, t } = f,
+  const { view, s, budget, months, openings, grand, code8, columnTotals, rows, t, closure } = f,
+    openingTotal = openings.reduce((a, b) => a + b, 0n),
     ratio = (v: string | bigint) => percentText(typeof v === "string" ? moneyUnits(v) : v, budget),
     pct = (v: string | null) => (v === null ? "-" : v + "%"),
-    progress = s.cumulativeProgress ? moneyUnits(s.cumulativeProgress) : 0n,
+    progress = s.cumulativeProgress ? moneyUnits(s.cumulativeProgress.replace(/^0+(?=\d)/, "")) : 0n, // "05" could be saved before the settings check tightened
     standard = budget * progress / 100_000_000n; // 계상액 × 누계공정률(%) / 100, ×10^6 units
   const pages: (typeof months)[] = [];
   for (let i = 0; i < Math.max(1, months.length); i += SUMMARY_MONTH_CAPACITY) pages.push(months.slice(i, i + SUMMARY_MONTH_CAPACITY));
@@ -61,9 +71,11 @@ export function printLegalForms(f: ReturnType<typeof legalForms>) {
 <table><tbody><tr><th>계상된안전관리비</th><td>${won(budget)}</td><th>도 급 공 사 비</th><td>${won(s.contractAmountWon || "0")}</td></tr>
 <tr><th>안전관리비사용률</th><td>${pct(ratio(grand))}</td><th>공사공정률</th><td>${e(s.cumulativeProgress ? s.cumulativeProgress + "%" : "미입력")}</td></tr></tbody></table>
 <table><thead><tr><th rowspan="2">구 분</th><th colspan="8">사 용 내 역</th><th rowspan="2">월 별 소 계</th></tr><tr>${SUMMARY_HEADS.map((h) => `<th>${h}</th>`).join("")}</tr></thead><tbody>
+${n === 0 && openingTotal ? `<tr><th>이전 누계</th>${openings.map((a) => `<td>${won(a)}</td>`).join("")}<td>${won(openingTotal)}</td></tr>` : ""}
 ${page.map((m) => `<tr><th>${krMonth(m.month)}</th>${m.amounts.map((a) => `<td>${won(a)}</td>`).join("")}<td>${won(m.total)}</td></tr>`).join("")}
 <tr><th>계</th>${SUMMARY_CODES.map((c) => `<td>${won(columnTotals.get(c)!)}</td>`).join("")}<td>${won(grand)}</td></tr>
 <tr><th>적용료</th><td colspan="8"></td><td>0</td></tr><tr><th>적용금액</th><td colspan="8"></td><td>${won(grand)}</td></tr></tbody></table>
+${openingTotal ? `<p>이전 누계는 최초 원장의 초기 누계이며 계와 사용률에 포함했습니다.</p>` : ""}
 ${code8 ? `<p>원본 양식과 같이 8번(본사) 열이 없습니다. 8번 사용액 ${won(code8)}원은 이 표의 합계에 포함되지 않습니다.</p>` : ""}</section>`).join("");
   const gap = `<section class="form-page"><p>[별지 제1호 서식]</p><h1>산업안전보건관리비 사용내역서(${view.month.slice(2, 4)}년 ${view.month.slice(5, 7)}월)</h1>
 <table><tbody><tr><th>건설업체명</th><td>${e(s.contractor)}</td><th>공사명</th><td>${e(s.projectName)}</td></tr>
@@ -84,13 +96,14 @@ ${rows.map((c) => `<tr><th>${c.scCode}. ${e(c.label)}</th><td>${won(c.opening)}<
 ${rows.map((c) => `<tr><th>${c.scCode}. ${e(c.label)}</th><td>${won(c.plan)}</td><td>${won(c.opening)}</td><td>${won(c.current)}</td><td>${won(c.cumulative)}</td><td>${won(c.remaining)}</td><td></td></tr>`).join("")}</tbody></table>
 <p>※ 첨부：사용항목별 세부내역 (양식 별첨)</p></section>`;
   return `<!doctype html><html lang="ko"><head><meta charset="utf-8"><title>${e(view.month)} 산업안전보건관리비 법정 서식</title><link rel="stylesheet" href="/print.css"></head><body><main>
-<p class="form-note">${view.status === "open" ? "작성 중 원장의 현재 값입니다. 마감 후 다시 출력하세요." : "마감 원장 기준입니다."} 원본 엑셀 양식의 문서 순서·값을 HTML로 재현했으며 모양은 근사입니다. 법적 적합성 판단이 아닙니다.</p>
+<p class="form-note">${closure ? `마감본 ${closure.number}에 고정된 값입니다.${closure.details ? "" : " 이 마감본은 인건비 구분·항목별 추가필드를 고정하기 전 기록이라 그 값이 비어 있습니다."}` : view.status === "open" ? "작성 중 원장의 현재 값입니다. 마감 후 다시 출력하세요." : "마감 원장 기준입니다."} 원본 엑셀 양식의 문서 순서·값을 HTML로 재현했으며 모양은 근사입니다. 법적 적합성 판단이 아닙니다.</p>
 ${cover}${summary}${gap}${overall}${usageSheets(f)}${detailSheets(f)}</main></body></html>`;
 }
 export function registerLegalForms(app: Express, db: Db, { access }: SiteOperations) {
   app.get("/api/sites/:siteId/cost-periods/:id/legal-forms/print", (req, res) => {
     access(req, true, true);
-    res.type("html").send(printLegalForms(legalForms(db, String(req.params.siteId), String(req.params.id))));
+    const q = z.object({ closureId: z.uuid().optional() }).strict().parse(req.query);
+    res.type("html").send(printLegalForms(legalForms(db, String(req.params.siteId), String(req.params.id), q.closureId)));
   });
 }
 // 2단계: 사용내역(을) and 항목 1~9 상세, from the original src/excel-expenses.js and src/detail-sheets.js.

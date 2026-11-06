@@ -77,6 +77,7 @@ export function CostHistory({ base, tick, disabled=false }: { base: string; tick
               >
                 마감본 {row.number} · {row.closed_at}
               </a>{" "}
+              · <a href={"/api" + base + "/legal-forms/print?closureId=" + row.id} target="_blank" rel="noreferrer">이 마감본 사용내역서 인쇄</a>
               · 해시 {row.hash} · <a href={"/api" + base + "/evidence/closures/" + row.id + "/print"} target="_blank" rel="noreferrer">고정 증빙 참조 목록 (과거 미기록 구분)</a>
               <CostOutputControl key={`${base}:${row.id}:${tick}:${disabled}`} base={base} selection={{closureId:row.id}} disabled={disabled} />
               <CostEvidenceComparison key={`${base}:${row.id}:${tick}`} base={base} selection={{ closureId: row.id }} />
