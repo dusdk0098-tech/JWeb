@@ -33,6 +33,9 @@ test("사진 보드 보드판: common board, per-photo none, print", async ({ pa
   await page.getByLabel("보드판 5줄 내용", { exact: true }).fill("<기초> 철근 배근 & 검측");
   await page.getByRole("group", { name: "보드판 위치", exact: true }).getByRole("button", { name: "오른쪽 위" }).click();
   await page.getByLabel("보드판 색", { exact: true }).selectOption("green");
+  await page.getByLabel("보드판 바탕 투명도", { exact: true }).fill("0.6");
+  await page.getByLabel("보드판 내용 칸 너비", { exact: true }).fill("0.8");
+  await expect(page.getByRole("img", { name: "보드판 미리보기, 5줄" })).toBeVisible(); // beside the fields
   await expect(page.getByRole("img", { name: /1번 사진.*보드판 5줄/ })).toBeVisible();
   await page.getByLabel("2번 사진 보드판 적용").selectOption("none"); // the second photo goes without
   await expect(page.getByRole("img", { name: /2번 사진 2-후\.png 미리보기, 원형 강조 0개$/ })).toBeVisible();
@@ -41,14 +44,14 @@ test("사진 보드 보드판: common board, per-photo none, print", async ({ pa
 
   const board = (await (await page.request.get(`/api/sites/${site.id}/photo-boards`)).json()).items[0];
   const saved = await (await page.request.get(`/api/sites/${site.id}/photo-boards/${board.id}`)).json();
-  expect(saved.scene.board).toMatchObject({ corner: "tr", theme: "green" });
+  expect(saved.scene.board).toMatchObject({ corner: "tr", theme: "green", opacity: 0.4, labelShare: 0.2 });
   expect(saved.scene.board.rows).toHaveLength(5);
   expect(saved.scene.items[1].board).toBeNull();
   const print = await (await page.request.get(`/api/sites/${site.id}/photo-boards/${board.id}/print`)).text();
   expect(print.match(/class="photo-board-panel"/g)).toHaveLength(1);
   expect(print).toContain("합성 신축 공사");
-  expect(print).toContain(">&#60;기초&#62; 철근 배근 &#38;</text>"); // escaped, wrapped to a second line
-  expect(print).toContain(">검측</text>");
+  expect(print).toContain(">&#60;기초&#62; 철근 배근 &#38; 검측</text>"); // escaped
+  expect(print).toContain('fill-opacity="0.4"'); // 60% transparent background
 
   await page.reload();
   await page.getByLabel("작업 현장").selectOption(site.id);

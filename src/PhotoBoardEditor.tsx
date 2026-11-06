@@ -92,6 +92,7 @@ export function PhotoBoardEditor({ base, initial, writable, onClose, onDirtyChan
     }, "image/png");
   }
   const placed = new Set(draft.scene.items.map((i) => i.photoId)), unplaced = board.photos.filter((p) => !placed.has(p.id));
+  const sample = draft.scene.items.find((i) => i.included && images[i.photoId] && i.board === undefined);
   return <section className="panel photo-editor">
     <PageHeader back="사진 보드 목록으로" backDisabled={busy} onBack={() => { if (guard.canLeave()) onClose(); }} title={draft.title || "사진 보드"}
       status={dirty ? <StatusChip tone="pending">저장 안 됨</StatusChip> : <StatusChip tone="done">저장됨</StatusChip>}>
@@ -119,7 +120,10 @@ export function PhotoBoardEditor({ base, initial, writable, onClose, onDirtyChan
       <Section no={3} level={3} title="보드판">
       <p className="muted">사진 위에 항목·내용 표를 얹습니다. 원본 사진은 그대로 두고 미리보기·PNG·사진대지 인쇄에만 그립니다.</p>
       <label><input type="checkbox" checked={!!draft.scene.board} onChange={(e) => { const scene = { ...draft.scene }; if (e.target.checked) scene.board = defaultBoard(); else delete scene.board; change({ ...draft, scene }); }} />모든 사진에 보드판 넣기</label>
-      {draft.scene.board && <BoardFields name="보드판" value={draft.scene.board} onChange={(board) => change({ ...draft, scene: { ...draft.scene, board } })} />}
+      {draft.scene.board && <div className="board-editor">
+        <BoardFields name="보드판" value={draft.scene.board} onChange={(board) => change({ ...draft, scene: { ...draft.scene, board } })} />
+        {sample ? <BoardPreview img={images[sample.photoId]} item={sample} board={draft.scene.board} caption={`${draft.scene.items.indexOf(sample) + 1}번 사진으로 미리보기`} /> : <p className="muted">사진을 올리면 여기에 미리 보입니다.</p>}
+      </div>}
       </Section>
     </fieldset>
     {unplaced.length > 0 && <p>배치 안 된 사진: {unplaced.map((p) => <button key={p.id} className="secondary" disabled={!writable || busy} onClick={() => setItems([...draft.scene.items, { photoId: p.id, included: true, rotation: 0, caption: "", circles: [] }])}>{p.filename} 배치</button>)}</p>}
@@ -175,31 +179,45 @@ export function PhotoBoardEditor({ base, initial, writable, onClose, onDirtyChan
   </section>;
 }
 const CORNERS = [["tl", "왼쪽 위"], ["tr", "오른쪽 위"], ["bl", "왼쪽 아래"], ["br", "오른쪽 아래"]] as const;
-// 보드판 fields; `name` prefixes every label so the common board and a photo's own board stay distinguishable.
+const pct = (v: number) => `${Math.round(v * 100)}%`, r2 = (v: number) => Math.round(v * 100) / 100;
+// 보드판 fields. Labels on screen stay short; `name` goes in the accessible names so the common board and a photo's own stay distinguishable.
 function BoardFields({ name, value: b, onChange }: { name: string; value: BoardPanel; onChange: (b: BoardPanel) => void }) {
   const set = (p: Partial<BoardPanel>) => onChange({ ...b, ...p });
   const setRow = (i: number, p: Partial<BoardPanel["rows"][number]>) => set({ rows: b.rows.map((r, j) => (j === i ? { ...r, ...p } : r)) });
+  const valueShare = 1 - (b.labelShare ?? 0.3);
   return <div className="board-fields">
     <table className="board-rows"><thead><tr><th scope="col">항목</th><th scope="col">내용</th><th scope="col"><span className="sr-only">줄 삭제</span></th></tr></thead><tbody>
       {b.rows.map((r, i) => <tr key={i}>
         <td><input aria-label={`${name} ${i + 1}줄 항목`} maxLength={20} value={r.label} onChange={(e) => setRow(i, { label: e.target.value })} /></td>
         <td><input aria-label={`${name} ${i + 1}줄 내용`} maxLength={200} value={r.value} onChange={(e) => setRow(i, { value: e.target.value })} /></td>
-        <td><button type="button" className="secondary" disabled={b.rows.length <= 1} aria-label={`${name} ${i + 1}줄 삭제`} onClick={() => set({ rows: b.rows.filter((_, j) => j !== i) })}>삭제</button></td>
+        <td><button type="button" className="board-row-del" disabled={b.rows.length <= 1} aria-label={`${name} ${i + 1}줄 삭제`} onClick={() => set({ rows: b.rows.filter((_, j) => j !== i) })}>삭제</button></td>
       </tr>)}
     </tbody></table>
-    <p><button type="button" className="secondary" disabled={b.rows.length >= BOARD_MAX_ROWS} onClick={() => set({ rows: [...b.rows, { label: "", value: "" }] })}>{name} 줄 추가</button> <span className="muted">최대 {BOARD_MAX_ROWS}줄</span></p>
-    <div className="segmented" role="group" aria-label={`${name} 위치`}>
-      {CORNERS.map(([v, l]) => <button type="button" key={v} aria-pressed={b.corner === v} className={b.corner === v ? "" : "secondary"} onClick={() => set({ corner: v })}>{l}</button>)}
-    </div>
-    <div className="grid">
-      <label>{name} 크기 <input type="range" aria-label={`${name} 크기`} min={0.2} max={1} step={0.05} value={b.size} onChange={(e) => set({ size: Number(e.target.value) })} /> {Math.round(b.size * 100)}%</label>
-      <label>{name} 바탕 진하기 <input type="range" aria-label={`${name} 바탕 진하기`} min={0.2} max={1} step={0.05} value={b.opacity} onChange={(e) => set({ opacity: Number(e.target.value) })} /> {Math.round(b.opacity * 100)}%</label>
-      <label>{name} 색<select aria-label={`${name} 색`} value={b.theme} onChange={(e) => set({ theme: e.target.value as BoardPanel["theme"] })}><option value="white">흰 보드</option><option value="green">녹색 칠판</option><option value="black">검은 보드</option></select></label>
-      <label>{name} 항목 정렬<select aria-label={`${name} 항목 정렬`} value={b.labelAlign} onChange={(e) => set({ labelAlign: e.target.value as "left" })}><option value="center">가운데</option><option value="left">왼쪽</option></select></label>
-      <label>{name} 내용 정렬<select aria-label={`${name} 내용 정렬`} value={b.valueAlign} onChange={(e) => set({ valueAlign: e.target.value as "left" })}><option value="left">왼쪽</option><option value="center">가운데</option></select></label>
-      <label><input type="checkbox" checked={b.bold} onChange={(e) => set({ bold: e.target.checked })} />{name} 글자 굵게</label>
+    <p className="board-add"><button type="button" className="secondary" aria-label={`${name} 줄 추가`} disabled={b.rows.length >= BOARD_MAX_ROWS} onClick={() => set({ rows: [...b.rows, { label: "", value: "" }] })}>줄 추가</button> <span className="muted">최대 {BOARD_MAX_ROWS}줄</span></p>
+    <div className="board-controls">
+      <div className="span-2"><span className="board-control-head">위치</span><div className="segmented" role="group" aria-label={`${name} 위치`}>
+        {CORNERS.map(([v, l]) => <button type="button" key={v} aria-pressed={b.corner === v} className={b.corner === v ? "" : "secondary"} onClick={() => set({ corner: v })}>{l}</button>)}
+      </div></div>
+      <label><span className="board-control-head">색</span><select aria-label={`${name} 색`} value={b.theme} onChange={(e) => set({ theme: e.target.value as BoardPanel["theme"] })}><option value="white">흰 보드</option><option value="green">녹색 칠판</option><option value="black">검은 보드</option></select></label>
+      <label><span className="board-control-head">표 크기<span>{pct(b.size)}</span></span><input type="range" aria-label={`${name} 표 크기`} min={0.2} max={1} step={0.05} value={b.size} onChange={(e) => set({ size: Number(e.target.value) })} /></label>
+      <label><span className="board-control-head">내용 칸 너비<span>{pct(valueShare)}</span></span><input type="range" aria-label={`${name} 내용 칸 너비`} min={0.5} max={0.85} step={0.05} value={r2(valueShare)} onChange={(e) => set({ labelShare: r2(1 - Number(e.target.value)) })} /></label>
+      <label><span className="board-control-head">바탕 투명도<span>{pct(1 - b.opacity)}</span></span><input type="range" aria-label={`${name} 바탕 투명도`} min={0} max={1} step={0.05} value={r2(1 - b.opacity)} onChange={(e) => set({ opacity: r2(1 - Number(e.target.value)) })} /></label>
+      <label><span className="board-control-head">항목 정렬</span><select aria-label={`${name} 항목 정렬`} value={b.labelAlign} onChange={(e) => set({ labelAlign: e.target.value as "left" })}><option value="center">가운데</option><option value="left">왼쪽</option></select></label>
+      <label><span className="board-control-head">내용 정렬</span><select aria-label={`${name} 내용 정렬`} value={b.valueAlign} onChange={(e) => set({ valueAlign: e.target.value as "left" })}><option value="left">왼쪽</option><option value="center">가운데</option></select></label>
+      <label className="board-bold"><input type="checkbox" aria-label={`${name} 글자 굵게`} checked={b.bold} onChange={(e) => set({ bold: e.target.checked })} />글자 굵게</label>
     </div>
   </div>;
+}
+// The common board on one photo, beside its fields, so a change shows without scrolling to the photo list.
+function BoardPreview({ img, item, board, caption }: { img: HTMLImageElement; item: SceneItem; board: BoardPanel; caption: string }) {
+  const ref = useRef<HTMLCanvasElement>(null);
+  useEffect(() => {
+    const canvas = ref.current, ctx = canvas?.getContext("2d");
+    if (!canvas || !ctx) return;
+    ctx.fillStyle = "#f4f4f4"; ctx.fillRect(0, 0, canvas.width, canvas.height);
+    drawBoard(ctx, board, drawItem(ctx, img, item, { x: 0, y: 0, w: canvas.width, h: canvas.height }));
+  }, [img, item, board]);
+  return <figure className="board-preview"><canvas ref={ref} width={720} height={540} role="img" aria-label={`보드판 미리보기, ${board.rows.length}줄`} /><figcaption className="muted">{caption}</figcaption></figure>;
 }
 export function ItemCanvas({ img, item, board, label, selectedCircle, writable, onAdd, onSelect, onCommit, onKey }: {
   img?: HTMLImageElement; item: SceneItem; board?: BoardPanel; label: string; selectedCircle: number | null; writable: boolean;

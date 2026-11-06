@@ -19,6 +19,8 @@ test("보드판 layout: wrap by estimated width, corners, shrink to fit, text ru
   assert.deepEqual([tr.x + tr.w, tr.y], [900, 50]);
   const tall = boardLayout({ ...b, size: 1, rows: Array.from({ length: 6 }, () => ({ label: "항목", value: "아주 긴 내용 ".repeat(20) })) }, { x: 0, y: 0, w: 800, h: 200 });
   assert.ok(tall.h <= 190.01 && tall.w < 800, "shrunk as a whole to 95% of the photo height");
+  assert.equal(boardLayout({ ...b, labelShare: 0.2 }, rect).labelW, 80, "the content column widens");
+  assert.equal(boardLayout({ ...b, labelShare: undefined }, rect).labelW, 120, "boards saved before this default to 30%");
   const runs = boardTexts(b, bl);
   assert.deepEqual(runs.map((r) => r.text), ["공사명", "합성 공사", "일자", "2026.11.05"]);
   assert.equal(runs[0].anchor, "middle"); // labels centered by default
@@ -43,6 +45,8 @@ test("보드판 scene: common board, per-photo own/none, limits", () => {
   assert.equal(photoScene.safeParse({ ...scene, board: { ...defaultBoard(), rows: [] } }).success, false, "at least 1 row");
   assert.equal(photoScene.safeParse({ ...scene, board: { ...defaultBoard(), theme: "pink" } }).success, false);
   assert.equal(photoScene.safeParse({ ...scene, board: { ...defaultBoard(), size: 2 } }).success, false);
+  assert.equal(photoScene.safeParse({ ...scene, board: { ...defaultBoard(), opacity: 0 } }).success, true, "fully transparent background");
+  assert.equal(photoScene.safeParse({ ...scene, board: { ...defaultBoard(), labelShare: 0.9 } }).success, false);
   assert.equal(boardFor(scene, item), scene.board);
   assert.equal(boardFor(scene, { ...item, board: null }), undefined);
   const own = { ...defaultBoard(), corner: "tr" as const };
