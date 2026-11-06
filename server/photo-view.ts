@@ -32,14 +32,14 @@ export type SvgCircle = { x: number; y: number; r: number; color: keyof typeof C
 // is estimated (CJK 1 em, others 0.56 em) instead of measured, so the server and the browser wrap the same way.
 export type BoardRow = { label: string; value: string };
 export type BoardPanel = {
-  rows: BoardRow[]; corner: "tl" | "tr" | "bl" | "br"; size: number; theme: keyof typeof BOARD_THEMES; opacity: number;
+  rows: BoardRow[]; corner: "tl" | "tr" | "bl" | "br"; size: number; labelShare?: number; theme: keyof typeof BOARD_THEMES; opacity: number;
   bold: boolean; labelAlign: "left" | "center"; valueAlign: "left" | "center";
 };
 export const BOARD_THEMES = { white: { fill: "#ffffff", text: "#111111" }, green: { fill: "#1d4a33", text: "#ffffff" }, black: { fill: "#111111", text: "#ffffff" } } as const;
 export const BOARD_MAX_ROWS = 6;
 export const defaultBoard = (): BoardPanel => ({
   rows: [{ label: "공사명", value: "" }, { label: "공종", value: "" }, { label: "위치", value: "" }, { label: "일자", value: "" }],
-  corner: "bl", size: 0.45, theme: "white", opacity: 0.85, bold: false, labelAlign: "center", valueAlign: "left",
+  corner: "bl", size: 0.6, labelShare: 0.25, theme: "white", opacity: 0.85, bold: false, labelAlign: "center", valueAlign: "left",
 });
 const em = (ch: string) => (ch.codePointAt(0)! >= 0x2e80 ? 1 : 0.56);
 // Greedy wrap by estimated width, breaking at the last space when the line has one; at most `max` lines, the last one ends
@@ -60,7 +60,7 @@ export function wrapText(text: string, width: number, max = 3) {
 export type BoardLayout = { x: number; y: number; w: number; h: number; labelW: number; font: number; lineH: number; pad: number; rows: { y: number; h: number; label: string[]; value: string[] }[] };
 // Board placed in a corner of the shown photo rectangle; shrunk as a whole when its rows would be taller than the photo.
 export function boardLayout(b: BoardPanel, r: { x: number; y: number; w: number; h: number }): BoardLayout {
-  const w0 = r.w * Math.min(1, Math.max(0.2, b.size)), font0 = w0 / 16, pad0 = font0 * 0.35, lineH0 = font0 * 1.3, labelW0 = w0 * 0.3;
+  const w0 = r.w * Math.min(1, Math.max(0.2, b.size)), font0 = w0 / 16, pad0 = font0 * 0.35, lineH0 = font0 * 1.3, labelW0 = w0 * (b.labelShare ?? 0.3);
   let y0 = 0;
   const rows0 = b.rows.map((row) => {
     const label = wrapText(row.label, (labelW0 - 2 * pad0) / font0, 2), value = wrapText(row.value, (w0 - labelW0 - 2 * pad0) / font0, 3);
