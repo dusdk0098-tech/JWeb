@@ -105,6 +105,15 @@ test("own template publish, inspection submit and independent return", async ({
       .getByRole("button", { name: "양식 목록으로", exact: true })
       .click();
     await page.getByRole("button", { name: "점검 기록", exact: true }).click();
+    // 일괄 출력: the submitted record opens in a new tab as one page of the batch document.
+    const [batch] = await Promise.all([
+      page.waitForEvent("popup"),
+      page.getByRole("link", { name: "현재 조건 일괄 인쇄", exact: true }).click(),
+    ]);
+    await expect(batch.getByText(/점검 기록 1건 · 조건:/)).toBeVisible();
+    await expect(batch.locator("section.form-page")).toHaveCount(1);
+    await expect(batch.getByText(/작업구역/)).toBeVisible();
+    await batch.close();
     await page.getByRole("button", { name: "점검 열기", exact: true }).click();
     await page.getByLabel("검토 사유", { exact: true }).fill("다시 확인");
     page.once("dialog", (d) => d.accept());
