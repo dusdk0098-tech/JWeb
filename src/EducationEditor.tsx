@@ -8,6 +8,7 @@ import { lastPlace, rememberPlace } from "./lastPlace";
 import type { EducationInput, EducationFull } from "./education-types";
 import { useDraftGuard } from "./useDraftGuard";
 import { EducationParticipants } from "./EducationParticipants";
+import { TbmInvitations } from "./TbmInvitations";
 const empty = (): EducationInput => ({
   title: "",
   courseLabel: "",
@@ -306,7 +307,15 @@ export function EducationEditor({
           onUpdated={setRecord}
           onDirty={setParticipantDirty}
         />
-      )}{" "}
+      )}
+      {record && (
+        <details className="advanced-tools">
+          <summary>참여 링크 · QR</summary>
+          {/* Not keyed by version: marking attendance must not take the QR off the screen while people are still scanning. */}
+          <TbmInvitations kind="education" key={record.id} path={`/sites/${site.id}/education/${record.id}/invitations`} draft={record.status === "draft"} writable={editable} />
+        </details>
+      )}
+      {" "}
       {record && <EducationAttachments siteId={site.id} record={record} editable={editable} disabled={working||formDirty||participantDirty||actionDirty} onBusy={setAttachmentBusy} onDirty={setAttachmentDirty} onRecord={setRecord} />}
       {record?.status === "draft" && site.role === "manager" && (
         <section className="panel">

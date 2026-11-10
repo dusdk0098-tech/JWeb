@@ -12,6 +12,20 @@ export const TBM_SIGNATURE_CONSENT = {
     "5. 이 서명은 참여 확인용이며 법적 효력이나 교육 이수를 판정하지 않습니다.",
   ].join("\n"),
 };
+// 교육 QR 참여 서명 동의. DRAFT wording (2026-11-10) adapted from the confirmed TBM v1 text — the owner or a legal
+// reviewer should confirm it before real use. Changing the text needs a new version string.
+export const EDUCATION_SIGNATURE_CONSENT = {
+  version: "education-signature-draft-1",
+  retainYears: 3,
+  text: [
+    "교육 참여 확인 서명 동의 (초안 1)",
+    "1. 목적: 이 안전보건교육에 참여했음을 본인이 직접 확인한 서명을 남깁니다.",
+    "2. 기록 항목: 참여 명단상 이름, 서명 이미지, 기록 시각, 서명한 교육일지 내용.",
+    "3. 보존 기간: 기록일로부터 3년 보관한 뒤 파기합니다.",
+    "4. 거부: 동의하지 않으면 서명 없이 참여 의사만 기록되고, 담당자가 수기로 참석을 확인합니다.",
+    "5. 이 서명은 참여 확인용이며 법적 효력, 교육 이수나 교육 시간을 판정하지 않습니다.",
+  ].join("\n"),
+};
 export const SIGNATURE_MAX_BYTES = 150 * 1024;
 // 근로자 QR 가입 동의 (server/site-signup.ts). DRAFT wording written by the developer on 2026-11-05 — the owner or a legal
 // reviewer should confirm it before real use. Changing the text needs a new version string.

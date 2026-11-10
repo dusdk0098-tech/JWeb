@@ -6,7 +6,7 @@ import { audit, type Db } from "./db.js";
 import { HttpError, type SiteOperations } from "./site-operations.js";
 import { journalHash } from "./daily-journal-sources.js";
 import { date } from "./validation.js";
-import { SIGNATURE_MAX_BYTES, TBM_SIGNATURE_CONSENT } from "./consent-text.js";
+import { EDUCATION_SIGNATURE_CONSENT, SIGNATURE_MAX_BYTES, TBM_SIGNATURE_CONSENT } from "./consent-text.js";
 // MOB-01 1단계 (docs/REMAINING_AREAS_SPEC.md): a time-limited TBM invitation link; a worker on the TBM roster confirms
 // name + date of birth and a participation event is recorded. It does not change the TBM roster state by itself and is not
 // proof of identity, attendance or a signature. Only token hashes and salted birth-date hashes are stored.
@@ -55,20 +55,40 @@ export const birthHash = (birthDate: string, salt: string) => scryptSync(birthDa
 export const nameKey = (v: string) => v.normalize("NFKC").replace(/\s+/g, "");
 type Session = { id: string; site_id: string; body: string; status: string; version: number };
 const tbmHash = (s: Session) => journalHash({ id: s.id, version: s.version, body: JSON.parse(s.body) });
+// One invitation mechanism, two activities (schema 81). The table names below are constants, never request input.
+// 교육일지: adding a participant or marking attendance bumps the session version, so the link is bound to the content only —
+// it survives attendance marking and still dies when the content is edited or the record is archived.
+const KINDS = {
+  tbm: {
+    sessions: "tbm_sessions", participants: "tbm_participants", hash: tbmHash, consent: TBM_SIGNATURE_CONSENT, purpose: "tbm_signature",
+    missing: "TBM 기록을 찾을 수 없습니다.", closed: "확정된 TBM에는 참여 링크를 만들 수 없습니다.",
+    changed: "TBM 내용이 바뀌었거나 확정되어 이 링크로는 참여할 수 없습니다. 담당자에게 새 링크를 요청하세요.",
+    mismatch: "TBM 명부의 이름과 생년월일이 맞지 않습니다. 담당자에게 확인하세요.",
+  },
+  education: {
+    sessions: "education_sessions", participants: "education_participants", hash: (s: Session) => journalHash({ id: s.id, body: JSON.parse(s.body) }),
+    consent: EDUCATION_SIGNATURE_CONSENT, purpose: "education_signature",
+    missing: "교육일지 기록을 찾을 수 없습니다.", closed: "보관 확정한 교육일지에는 참여 링크를 만들 수 없습니다.",
+    changed: "교육일지 내용이 바뀌었거나 보관 확정되어 이 링크로는 참여할 수 없습니다. 담당자에게 새 링크를 요청하세요.",
+    mismatch: "교육 참여 명단의 이름과 생년월일이 맞지 않습니다. 담당자에게 확인하세요.",
+  },
+} as const;
+type Kind = keyof typeof KINDS;
 const joinInput = z.object({
   token: z.string().regex(/^[A-Za-z0-9_-]{43}$/), name: z.string().trim().min(1).max(100), birthDate: date,
-  consentVersion: z.literal(TBM_SIGNATURE_CONSENT.version, { message: "동의문이 바뀌었습니다. 화면을 새로 고쳐 다시 확인하세요." }),
+  consentVersion: z.string().min(1).max(64), // compared with the invitation's own consent text below
   decision: z.enum(["grant", "deny"]), signature: z.string().max(Math.ceil((SIGNATURE_MAX_BYTES * 4) / 3) + 32).optional(),
 }).strict();
 const tokenInput = z.object({ token: z.string().regex(/^[A-Za-z0-9_-]{43}$/) }).strict();
-// Valid invitation for a still-draft TBM whose content has not changed since the invitation was made.
+// Valid invitation for a still-draft TBM or 교육일지 whose content has not changed since the invitation was made.
 function openInvitation(db: Db, token: string) {
   const inv = db.prepare("SELECT * FROM activity_invitations WHERE token_hash=?").get(sha(token)) as
-    { id: string; site_id: string; activity_id: string; document_hash: string; expires_at: string; revoked_at: string | null } | undefined;
+    { id: string; site_id: string; kind: Kind; activity_id: string; document_hash: string; expires_at: string; revoked_at: string | null } | undefined;
   if (!inv || inv.revoked_at || inv.expires_at <= new Date().toISOString()) throw new HttpError(410, "만료되었거나 폐기된 참여 링크입니다. 담당자에게 새 링크를 요청하세요.");
-  const s = db.prepare("SELECT id,site_id,body,status,version FROM tbm_sessions WHERE id=? AND site_id=?").get(inv.activity_id, inv.site_id) as Session | undefined;
-  if (!s || s.status !== "draft" || tbmHash(s) !== inv.document_hash) throw new HttpError(410, "TBM 내용이 바뀌었거나 확정되어 이 링크로는 참여할 수 없습니다. 담당자에게 새 링크를 요청하세요.");
-  return { inv, body: JSON.parse(s.body) as { title?: string; date?: string; location?: string } };
+  const k = KINDS[inv.kind],
+    s = db.prepare(`SELECT id,site_id,body,status,version FROM ${k.sessions} WHERE id=? AND site_id=?`).get(inv.activity_id, inv.site_id) as Session | undefined;
+  if (!s || s.status !== "draft" || k.hash(s) !== inv.document_hash) throw new HttpError(410, k.changed);
+  return { inv, k, body: JSON.parse(s.body) as { title?: string; date?: string; location?: string } };
 }
 // Public (no login) routes; CSRF/Origin checks still apply. Register before the login guard.
 export function registerTbmJoinPublic(app: Express, db: Db) {
@@ -79,15 +99,17 @@ export function registerTbmJoinPublic(app: Express, db: Db) {
     message: { error: "확인 시도가 많습니다. 15분 후 다시 시도하거나 담당자에게 문의하세요." },
   });
   app.post("/api/join/info", (req, res) => {
-    const { body } = openInvitation(db, tokenInput.parse(req.body).token);
-    res.json({ title: body.title ?? "", date: body.date ?? "", location: body.location ?? "" });
+    const { inv, body } = openInvitation(db, tokenInput.parse(req.body).token);
+    // kind is sent only when it is not a TBM, so the TBM response stays as it was.
+    res.json({ title: body.title ?? "", date: body.date ?? "", location: body.location ?? "", ...(inv.kind === "tbm" ? {} : { kind: inv.kind }) });
   });
   app.post("/api/join", limiter, (req, res) => {
-    const v = joinInput.parse(req.body), { inv } = openInvitation(db, v.token);
-    const candidates = (db.prepare("SELECT p.worker_id,p.name,i.salt,i.birth_hash FROM tbm_participants p JOIN worker_identities i ON i.worker_id=p.worker_id WHERE p.session_id=?")
+    const v = joinInput.parse(req.body), { inv, k } = openInvitation(db, v.token);
+    if (v.consentVersion !== k.consent.version) throw new HttpError(400, "동의문이 바뀌었습니다. 화면을 새로 고쳐 다시 확인하세요.");
+    const candidates = (db.prepare(`SELECT p.worker_id,p.name,i.salt,i.birth_hash FROM ${k.participants} p JOIN worker_identities i ON i.worker_id=p.worker_id WHERE p.session_id=?`)
       .all(inv.activity_id) as { worker_id: string; name: string; salt: string; birth_hash: string }[]).filter((c) => nameKey(c.name) === nameKey(v.name));
     const match = candidates.find((c) => timingSafeEqual(Buffer.from(birthHash(v.birthDate, c.salt), "hex"), Buffer.from(c.birth_hash, "hex")));
-    if (!match) throw new HttpError(400, "TBM 명부의 이름과 생년월일이 맞지 않습니다. 담당자에게 확인하세요.");
+    if (!match) throw new HttpError(400, k.mismatch);
     const existing = db.prepare("SELECT at FROM participation_events WHERE invitation_id=? AND worker_id=?").get(inv.id, match.worker_id) as { at: string } | undefined;
     if (existing) return res.json({ recorded: true, already: true, name: match.name, at: existing.at });
     let png: Buffer | null = null;
@@ -97,53 +119,62 @@ export function registerTbmJoinPublic(app: Express, db: Db) {
         throw new HttpError(400, "서명을 그린 뒤 다시 제출하세요.");
     } else if (v.signature) throw new HttpError(400, "동의하지 않으면 서명을 보내지 않습니다.");
     const at = new Date().toISOString(), id = randomUUID(), retain = new Date(at);
-    retain.setUTCFullYear(retain.getUTCFullYear() + TBM_SIGNATURE_CONSENT.retainYears);
+    retain.setUTCFullYear(retain.getUTCFullYear() + k.consent.retainYears);
     db.exec("BEGIN IMMEDIATE");
     try {
       db.prepare("INSERT INTO participation_events VALUES(?,?,?,?,?,?,?,'name_birth',?)").run(id, inv.id, inv.site_id, inv.activity_id, match.worker_id, match.name, inv.document_hash, at);
-      db.prepare("INSERT INTO consent_records VALUES(?,?,?,'tbm_signature',?,?,?,?)").run(randomUUID(), id, inv.site_id, TBM_SIGNATURE_CONSENT.version, v.decision, at, retain.toISOString());
+      db.prepare("INSERT INTO consent_records VALUES(?,?,?,?,?,?,?,?)").run(randomUUID(), id, inv.site_id, k.purpose, k.consent.version, v.decision, at, retain.toISOString());
       if (png) db.prepare("INSERT INTO signature_records VALUES(?,?,?,?,?,?,?,?,?)").run(randomUUID(), id, inv.site_id, inv.document_hash, png.length, sha(png.toString("latin1")), png, at, retain.toISOString());
       db.exec("COMMIT");
     } catch (e) { db.exec("ROLLBACK"); throw e; }
     res.json({ recorded: true, already: false, name: match.name, at, signed: !!png });
   });
 }
-export function registerTbmJoin(app: Express, db: Db, { access, mutate }: SiteOperations) {
+function activityRoutes(app: Express, db: Db, { access, mutate }: Pick<SiteOperations, "access" | "mutate">, kind: Kind) {
+  const k = KINDS[kind];
   const session = (req: Request) => {
-    const s = db.prepare("SELECT id,site_id,body,status,version FROM tbm_sessions WHERE id=? AND site_id=?").get(String(req.params.id), String(req.params.siteId)) as Session | undefined;
-    if (!s) throw new HttpError(404, "TBM 기록을 찾을 수 없습니다.");
+    const s = db.prepare(`SELECT id,site_id,body,status,version FROM ${k.sessions} WHERE id=? AND site_id=?`).get(String(req.params.id), String(req.params.siteId)) as Session | undefined;
+    if (!s) throw new HttpError(404, k.missing);
     return s;
+  };
+  // 교육일지 drafts belong to their author, the same rule as its participant routes.
+  const write = (req: Request) => {
+    access(req, true);
+    if (kind === "education" && (db.prepare("SELECT author_id FROM education_sessions WHERE id=? AND site_id=?").get(String(req.params.id), String(req.params.siteId)) as { author_id: string } | undefined)?.author_id !== req.session.userId)
+      throw new HttpError(403, "원 작성자만 교육 참여 링크를 만들거나 폐기할 수 있습니다.");
   };
   const list = (s: Session) => ({
     invitations: db.prepare("SELECT id,document_hash,expires_at,revoked_at,created_at FROM activity_invitations WHERE activity_id=? AND site_id=? ORDER BY created_at DESC LIMIT 20").all(s.id, s.site_id)
-      .map((i) => ({ ...(i as object), current: (i as { document_hash: string }).document_hash === tbmHash(s) })),
+      .map((i) => ({ ...(i as object), current: (i as { document_hash: string }).document_hash === k.hash(s) })),
     events: db.prepare(`SELECT e.id,e.worker_id,e.worker_name,e.invitation_id,e.at,e.document_hash=? AS current,c.decision,c.text_version,(g.id IS NOT NULL) AS signed
       FROM participation_events e LEFT JOIN consent_records c ON c.participation_id=e.id LEFT JOIN signature_records g ON g.participation_id=e.id
-      WHERE e.activity_id=? AND e.site_id=? ORDER BY e.at`).all(tbmHash(s), s.id, s.site_id),
+      WHERE e.activity_id=? AND e.site_id=? ORDER BY e.at`).all(k.hash(s), s.id, s.site_id),
   });
-  const base = "/api/sites/:siteId/tbm/:id/invitations";
+  const base = `/api/sites/:siteId/${kind}/:id/invitations`;
   app.get(base, (req, res) => { access(req); res.json(list(session(req))); });
   app.post(base, (req, res) => {
-    access(req, true);
-    mutate(req, res, `tbm:invite:${req.params.siteId}:${req.params.id}`, {}, () => {
+    session(req);
+    write(req);
+    mutate(req, res, `${kind}:invite:${req.params.siteId}:${req.params.id}`, {}, () => {
       const s = session(req);
-      if (s.status !== "draft") throw new HttpError(409, "확정된 TBM에는 참여 링크를 만들 수 없습니다.");
+      if (s.status !== "draft") throw new HttpError(409, k.closed);
       const token = randomBytes(32).toString("base64url"), now = new Date(), expires = new Date(now.getTime() + INVITATION_HOURS * 3600_000).toISOString();
-      db.prepare("INSERT INTO activity_invitations VALUES(?,?,'tbm',?,?,?,?,NULL,?,?)").run(randomUUID(), s.site_id, s.id, sha(token), tbmHash(s), expires, req.session.userId!, now.toISOString());
-      audit(db, req.session.userId!, s.site_id, "tbm.invitation_created", s.id);
+      db.prepare("INSERT INTO activity_invitations VALUES(?,?,?,?,?,?,?,NULL,?,?)").run(randomUUID(), s.site_id, kind, s.id, sha(token), k.hash(s), expires, req.session.userId!, now.toISOString());
+      audit(db, req.session.userId!, s.site_id, `${kind}.invitation_created`, s.id);
       // The raw token is returned once and never stored.
       return { token, expiresAt: expires, ...list(s) };
-    }, () => { access(req, true); });
+    }, () => { write(req); });
   });
   app.post(base + "/:invitationId/revoke", (req, res) => {
-    access(req, true);
-    mutate(req, res, `tbm:invite:revoke:${req.params.siteId}:${req.params.invitationId}`, {}, () => {
+    session(req);
+    write(req);
+    mutate(req, res, `${kind}:invite:revoke:${req.params.siteId}:${req.params.invitationId}`, {}, () => {
       const s = session(req), r = db.prepare("UPDATE activity_invitations SET revoked_at=? WHERE id=? AND activity_id=? AND site_id=? AND revoked_at IS NULL")
         .run(new Date().toISOString(), String(req.params.invitationId), s.id, s.site_id);
       if (!r.changes) throw new HttpError(404, "폐기할 참여 링크가 없습니다.");
-      audit(db, req.session.userId!, s.site_id, "tbm.invitation_revoked", String(req.params.invitationId));
+      audit(db, req.session.userId!, s.site_id, `${kind}.invitation_revoked`, String(req.params.invitationId));
       return list(s);
-    }, () => { access(req, true); });
+    }, () => { write(req); });
   });
   app.get(base.replace("/invitations", "/participation/:eventId/signature"), (req, res) => {
     access(req);
@@ -154,6 +185,9 @@ export function registerTbmJoin(app: Express, db: Db, { access, mutate }: SiteOp
     if (png.length !== g.size || sha(png.toString("latin1")) !== g.sha256) throw new HttpError(409, "서명 크기/해시가 일치하지 않습니다.");
     res.set({ "Content-Type": "image/png", "Content-Disposition": "inline", "X-Content-Type-Options": "nosniff", "Cache-Control": "no-store" }).send(png);
   });
+}
+export function registerTbmJoin(app: Express, db: Db, { access, mutate }: SiteOperations) {
+  for (const kind of ["tbm", "education"] as const) activityRoutes(app, db, { access, mutate }, kind);
   app.get("/api/sites/:siteId/worker-identities", (req, res) => {
     access(req, true, true);
     res.json({ workerIds: (db.prepare("SELECT worker_id FROM worker_identities WHERE site_id=?").all(String(req.params.siteId)) as { worker_id: string }[]).map((r) => r.worker_id) });
