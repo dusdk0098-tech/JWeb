@@ -40,7 +40,7 @@ export async function api<T>(
   const data = await response.json();
   if (!response.ok) {
     await sessionLost(path, response.status);
-    throw new Error(errorText(data));
+    throw Object.assign(new Error(errorText(data)), { status: response.status }); // status: the outbox tells a refusal from "try later"
   }
   return data as T;
 }

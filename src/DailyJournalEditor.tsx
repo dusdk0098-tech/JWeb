@@ -121,22 +121,16 @@ export function DailyJournalEditor({
     e?.preventDefault();
     if (busy) return;
     const path = record ? base + "/" + record.id : base,
-      value = record ? { version: record.version, body } : { date: day, body };
+      value = record ? { version: record.version, body } : { date: day, body },
+      method = record ? "PUT" : "POST", key = guard.key(path, value);
     setBusy(true);
     setError("");
     try {
-      adopt(
-        await api<DailyJournal>(
-          path,
-          record ? "PUT" : "POST",
-          value,
-          guard.key(path, value),
-        ),
-      );
+      adopt(await api<DailyJournal>(path, method, value, key));
       rememberPlace(site.id, body.workLocations);
       offline.saved();
     } catch (e) {
-      setError(offline.failed(e));
+      setError(offline.failed(e, { path, method, body: value, key, label: `안전업무일지 ${record?.date || day}` }));
     } finally {
       setBusy(false);
     }

@@ -132,13 +132,10 @@ export function TbmEditor({
     if (busy) return;
     setBusy(true);
     setError("");
+    const path = `/sites/${site.id}/tbm${record ? "/" + record.id : ""}`, method = record ? "PUT" : "POST",
+      value = { ...form, ...(record ? { version: record.version } : {}) };
     try {
-      const next = await api<TbmFull>(
-        `/sites/${site.id}/tbm${record ? "/" + record.id : ""}`,
-        record ? "PUT" : "POST",
-        { ...form, ...(record ? { version: record.version } : {}) },
-        key,
-      );
+      const next = await api<TbmFull>(path, method, value, key);
       setRecord(next);
       setHistoricalConfirm(false);
       setFixedSource(null);
@@ -147,7 +144,7 @@ export function TbmEditor({
       rememberPlace(site.id, next.body.location);
       offline.saved();
     } catch (e) {
-      setError(offline.failed(e));
+      setError(offline.failed(e, { path, method, body: value, key, label: `TBM ${form.title}` }));
     } finally {
       setBusy(false);
     }

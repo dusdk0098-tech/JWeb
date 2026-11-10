@@ -125,7 +125,7 @@ export function InspectionEditor({
         );
       if (action === "save") offline.saved();
     } catch (e) {
-      setError(action === "save" ? offline.failed(e) : (e as Error).message);
+      setError(action === "save" ? offline.failed(e, { path, method: record ? "PUT" : "POST", body: value, key: guard.key(path, value), label: `점검 ${form.date} ${form.location}` }) : (e as Error).message);
     } finally {
       setBusy(false);
     }
