@@ -8,6 +8,7 @@ import { migratePermits } from "./permits.js";
 import { migrateQualifications } from "./qualifications.js";
 import { migrateSiteSignup } from "./site-signup.js";
 import { migrateManagerSignup } from "./manager-signup.js";
+import { migrateEducationJoin } from "./education-join.js";
 import { migrateEducationReviews } from "./education-catalog-review.js";
 import { migratePhotoBoards } from "./photo-board.js";
 import { migrateTbmJoin, migrateTbmSignatures } from "./tbm-join.js";
@@ -244,6 +245,16 @@ PRAGMA user_version=1;`);
       if (version < 79) migrateSiteSignup(db);
       if (version < 80) migrateManagerSignup(db);
     });
+    // 81 rebuilds two tables to widen a CHECK. SQLite needs foreign-key enforcement off for that and ignores the pragma
+    // inside a transaction, so it runs as its own transaction; the migration checks the references itself.
+    if (version < 81) {
+      db.exec("PRAGMA foreign_keys=OFF");
+      try {
+        transaction(db, () => migrateEducationJoin(db));
+      } finally {
+        db.exec("PRAGMA foreign_keys=ON");
+      }
+    }
   } catch (error) {
     db.close();
     throw error;

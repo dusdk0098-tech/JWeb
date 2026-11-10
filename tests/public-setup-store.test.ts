@@ -10,7 +10,7 @@ const TOKEN = "synthetic-cf-api-token-ABCD";
 test("public_setup: answers, sealed Cloudflare token, checks, reset", () => {
   const db = openDatabase(":memory:");
   try {
-    assert.equal((db.prepare("PRAGMA user_version").get() as { user_version: number }).user_version, 80);
+    assert.equal((db.prepare("PRAGMA user_version").get() as { user_version: number }).user_version, 81);
     db.prepare("INSERT INTO users VALUES(?,?,?,?)").run("u1", "op@example.test", "op", "x");
     assert.equal(readSetup(db, secret), null);
     writeSetup(db, secret, "u1", { hasDomain: true, canRouter: false, recommended: "tunnel", chosen: "tunnel", cfToken: TOKEN });
