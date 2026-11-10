@@ -33,8 +33,18 @@ export function inspectionTemplatesRegister(db:Db,site:string,q:z.infer<typeof t
  const sql=where.join(" AND "),total=Number(db.prepare(`SELECT COUNT(*) n FROM inspection_templates t WHERE ${sql}`).get(...args)?.n),rows=db.prepare(`SELECT t.* FROM inspection_templates t WHERE ${sql} ORDER BY created_at DESC,id DESC LIMIT 50 OFFSET ?`).all(...args,q.offset) as TemplateRow[];
  return {items:rows.map(r=>({id:r.id,version:r.version,status:r.status,parentId:r.parent_id,title:JSON.parse(r.body).title as string,use:inspectionUse(db,r)})),total,hasMore:q.offset+rows.length<total};
 });}
-export function inspectionRecordsRegister(db:Db,site:string,user:string,role:string,q:z.infer<typeof inspectionRegisterQuery>){return read(db,()=>{
+function recordsWhere(site:string,user:string,role:string,q:z.infer<typeof inspectionRegisterQuery>){
  const where=["i.site_id=?"],args:(string|number)[]=[site];if(q.from){where.push("json_extract(i.body,'$.date')>=?");args.push(q.from);}if(q.to){where.push("json_extract(i.body,'$.date')<=?");args.push(q.to);}if(q.status){where.push("i.status=?");args.push(q.status);}if(q.work==="mine"){where.push("i.owner_id=?");args.push(user);}if(q.work==="reviewable"){where.push("?='manager' AND i.owner_id!=? AND i.status='submitted'");args.push(role,user);}if(q.history==="current")where.push("NOT EXISTS(SELECT 1 FROM inspections c WHERE c.parent_id=i.id AND c.site_id=i.site_id)");if(q.keyword){where.push("(instr(lower(json_extract(i.body,'$.location')),lower(?))>0 OR instr(lower(json_extract(i.body,'$.performedBy')),lower(?))>0 OR instr(lower(json_extract(i.template_snapshot,'$.body.title')),lower(?))>0)");args.push(q.keyword,q.keyword,q.keyword);}
- const sql=where.join(" AND "),total=Number(db.prepare(`SELECT COUNT(*) n FROM inspections i WHERE ${sql}`).get(...args)?.n),rows=db.prepare(`SELECT i.* FROM inspections i WHERE ${sql} ORDER BY created_at DESC,id DESC LIMIT 50 OFFSET ?`).all(...args,q.offset) as InspectionRow[];
+ return {sql:where.join(" AND "),args};
+}
+// 일괄 출력 대상: the register's filter minus drafts. Over 100 is refused whole — never a partial print.
+export function inspectionRecordsForPrint(db:Db,site:string,user:string,role:string,q:z.infer<typeof inspectionRegisterQuery>){return read(db,()=>{
+ if(q.status==="draft")throw new HttpError(400,"작성 중 초안은 일괄 출력하지 않습니다. 문서 상태 조건을 바꾸세요.");
+ const {sql,args}=recordsWhere(site,user,role,q),rows=db.prepare(`SELECT i.* FROM inspections i WHERE ${sql} AND i.status!='draft' ORDER BY created_at DESC,id DESC LIMIT 101`).all(...args) as InspectionRow[];
+ if(rows.length>100)throw new HttpError(409,"일괄 출력은 100건까지입니다. 일부만 출력하지 않습니다. 기록일·상태·문자 조건을 좁히세요.");
+ return rows;
+});}
+export function inspectionRecordsRegister(db:Db,site:string,user:string,role:string,q:z.infer<typeof inspectionRegisterQuery>){return read(db,()=>{
+ const {sql,args}=recordsWhere(site,user,role,q),total=Number(db.prepare(`SELECT COUNT(*) n FROM inspections i WHERE ${sql}`).get(...args)?.n),rows=db.prepare(`SELECT i.* FROM inspections i WHERE ${sql} ORDER BY created_at DESC,id DESC LIMIT 50 OFFSET ?`).all(...args,q.offset) as InspectionRow[];
  return {items:rows.map(r=>{const v=inspectionRecord(r);return {id:r.id,status:r.status,version:r.version,ownerId:r.owner_id,parentId:r.parent_id,date:v.body.date,location:v.body.location,title:v.template_snapshot.body.title};}),total,hasMore:q.offset+rows.length<total};
 });}
