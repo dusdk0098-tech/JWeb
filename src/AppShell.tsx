@@ -1,6 +1,7 @@
 import { useEffect, useState, type ReactNode } from "react";
 import type { Site, User } from "./api";
 import { HOME, MOBILE_TABS, NAV_GROUPS, SETTINGS, groupOf, titleOf, type NavItem } from "./nav";
+import { OutboxStatus } from "./OutboxStatus";
 // 앱 셸 (UI 개편 PR 2): PC는 묶음 사이드바, 폰은 하단 탭 5개 + 메뉴 시트. 탭 전환 판단(저장 안 된 입력 확인)은 App이 한다.
 export function NavIcon({ name, size = 18 }: { name: string; size?: number }) {
   // public/icons/*.svg use currentColor; <img> cannot inherit it, so mask the icon with the text color.
@@ -61,6 +62,7 @@ export function AppShell({ user, sites, siteId, site, tab, disabled, error, oper
           <span>{site ? { manager: "현장 관리자", editor: "작성자", viewer: "열람자" }[site.role] : "현장을 먼저 만드세요"}</span>
         </header>
         {error && <p className="error" role="alert">{error}</p>}
+        <OutboxStatus />
         {children}
       </main>
       <nav className="tabbar" aria-label="하단 메뉴">

@@ -5,8 +5,8 @@ const DB = "yweb-offline-drafts", TTL_MS = 7 * 24 * 3600_000;
 type Stored = { id: string; iv: Uint8Array<ArrayBuffer>; data: ArrayBuffer; savedAt: string };
 function open(): Promise<IDBDatabase> {
   return new Promise((done, fail) => {
-    const r = indexedDB.open(DB, 1);
-    r.onupgradeneeded = () => { r.result.createObjectStore("drafts", { keyPath: "id" }); r.result.createObjectStore("keys", { keyPath: "id" }); };
+    const r = indexedDB.open(DB, 2); // 2 adds the outbox store
+    r.onupgradeneeded = () => { for (const name of ["drafts", "keys", "outbox"]) if (!r.result.objectStoreNames.contains(name)) r.result.createObjectStore(name, { keyPath: "id" }); };
     r.onsuccess = () => done(r.result);
     r.onerror = () => fail(r.error);
   });
@@ -46,6 +46,31 @@ export async function loadDraft<T>(id: string): Promise<{ value: T; savedAt: str
 }
 export async function deleteDraft(id: string) {
   try { const db = await open(); await call(db, "drafts", "readwrite", (s) => s.delete(id)); db.close(); } catch { /* nothing stored */ }
+}
+// 전송함 (src/outbox.ts): the same device key, 7-day limit and logout wipe as the drafts. savedAt is kept on rewrites so
+// a refused item does not live longer than the limit.
+export async function putQueued(id: string, value: unknown, savedAt = new Date().toISOString()) {
+  try {
+    const db = await open(), iv = crypto.getRandomValues(new Uint8Array(12));
+    const data = await crypto.subtle.encrypt({ name: "AES-GCM", iv }, await key(db), new TextEncoder().encode(JSON.stringify(value)));
+    await call(db, "outbox", "readwrite", (s) => s.put({ id, iv, data, savedAt } satisfies Stored));
+    db.close();
+    return true;
+  } catch { return false; }
+}
+export async function listQueued<T>(): Promise<{ id: string; savedAt: string; value: T }[]> {
+  try {
+    const db = await open(), rows = await call<Stored[]>(db, "outbox", "readonly", (s) => s.getAll()), k = await key(db), out: { id: string; savedAt: string; value: T }[] = [];
+    for (const row of rows.sort((a, b) => a.savedAt.localeCompare(b.savedAt))) {
+      if (Date.now() - Date.parse(row.savedAt) > TTL_MS) { await call(db, "outbox", "readwrite", (s) => s.delete(row.id)); continue; }
+      out.push({ id: row.id, savedAt: row.savedAt, value: JSON.parse(new TextDecoder().decode(await crypto.subtle.decrypt({ name: "AES-GCM", iv: row.iv }, k, row.data))) as T });
+    }
+    db.close();
+    return out;
+  } catch { return []; }
+}
+export async function deleteQueued(id: string) {
+  try { const db = await open(); await call(db, "outbox", "readwrite", (s) => s.delete(id)); db.close(); } catch { /* nothing stored */ }
 }
 export function clearOfflineDrafts(): Promise<void> {
   return new Promise((done) => {

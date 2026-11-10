@@ -114,20 +114,17 @@ export function HazardEditor({
     if (busy) return;
     setBusy(true);
     setError("");
+    const path = `/sites/${site.id}/hazards${record ? "/" + record.id : ""}`, method = record ? "PUT" : "POST",
+      value = { ...form, ...(record ? { version: record.version } : {}) };
     try {
-      const next = await api<HazardRecord>(
-        `/sites/${site.id}/hazards${record ? "/" + record.id : ""}`,
-        record ? "PUT" : "POST",
-        { ...form, ...(record ? { version: record.version } : {}) },
-        saveKey,
-      );
+      const next = await api<HazardRecord>(path, method, value, saveKey);
       setRecord(next);
       rememberPlace(site.id, next.body.location);
       setForm(next.body);
       setSaveKey(crypto.randomUUID());
       offline.saved();
     } catch (e) {
-      setError(offline.failed(e));
+      setError(offline.failed(e, { path, method, body: value, key: saveKey, label: `신고 · 조치 ${form.title}` }));
     } finally {
       setBusy(false);
     }
