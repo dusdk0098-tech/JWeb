@@ -17,6 +17,8 @@ export const costDetailFields: Record<number, readonly DetailField[]> = {
   8: [text("company", "소속", true), text("role", "직책", true), text("personName", "성명", true), date("positionedDate", "보직일", true), note],
   9: [{ key: "decisionType", label: "결정 구분", type: "select", options: ["위험성평가", "노사협의"], required: true }, date("decisionDate", "결정일", true), text("paymentDetails", "지급내역", true), note],
 };
+// 2026-13-99 or 2026-02-30 have the right shape but are not days.
+const realDate = (v: string) => { const d = new Date(v + "T00:00:00Z"); return !Number.isNaN(d.getTime()) && d.toISOString().slice(0, 10) === v; };
 // Returns a Korean problem message, or null when the details fit the category's fields.
 export function detailProblem(code: number | undefined, details: Record<string, string>) {
   const fields = code ? costDetailFields[code] : undefined;
@@ -27,7 +29,7 @@ export function detailProblem(code: number | undefined, details: Record<string, 
     if (typeof value !== "string" || value.length > 200) return `${f.label}은(는) 200자 이하 문자로 입력하세요.`;
     if (!value) continue;
     if (f.type === "number" && !/^(0|[1-9]\d{0,11})$/.test(value)) return `${f.label}은(는) 0 이상 정수로 입력하세요.`;
-    if (f.type === "date" && !/^\d{4}-\d{2}-\d{2}$/.test(value)) return `${f.label}은(는) 날짜로 입력하세요.`;
+    if (f.type === "date" && !(/^\d{4}-\d{2}-\d{2}$/.test(value) && realDate(value))) return `${f.label}은(는) 날짜로 입력하세요.`;
     if (f.type === "select" && !f.options!.includes(value)) return `${f.label} 선택값이 올바르지 않습니다.`;
   }
   return null;

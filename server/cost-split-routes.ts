@@ -86,7 +86,8 @@ export function registerCostSplits(
         String(req.params.id),
       ),
       row = splitRow(db, period.id, String(req.params.splitId));
-    res.type("html").send(printCostSplit(splitView(row, period.site_id)));
+    const view = splitView(row, period.site_id);
+    res.type("html").send(printCostSplit(view, (JSON.parse(period.categories) as { id: string; label: string }[]).find((c) => c.id === view.snapshot.source.category_id)?.label));
   });
   app.post(base + "/expenses/:expenseId/split", (req, res) => {
     access(req, true, true);

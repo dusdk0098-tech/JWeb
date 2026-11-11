@@ -68,7 +68,8 @@ export function CostSettingsForm({
     setBusy(true);
     setError("");
     setNotice("");
-    const body = { version: period.version, settings: form };
+    // "동일" 체크 시 숨은 집계표 기간 칸의 옛 값이 검증에 걸리지 않게 공사기간을 그대로 보낸다(서버도 그렇게 저장한다).
+    const body = { version: period.version, settings: form.summarySameAsProject ? { ...form, summaryStart: form.projectStart, summaryEnd: form.projectEnd } : form };
     try {
       const next = await api<CostPeriod>(`${base}/settings`, "PUT", body, guard.key(base + "/settings", body));
       setForm(next.settings ?? empty);

@@ -27,7 +27,7 @@ export function registerCostPhotos(app: Express, db: Db, { access, mutate }: Sit
   app.post(base + "/evidence/files/:attachmentId/display", async (req, res, next) => {
     try {
       const row = period(req, true), fileId = String(req.params.attachmentId);
-      const { format } = rawAttachmentMetadata(req, "x-cost-period-version");
+      const { format, version } = rawAttachmentMetadata(req, "x-cost-period-version");
       if (format !== "image/jpeg") throw new HttpError(400, "표시본은 JPEG만 받습니다.");
       const bytes = await read(req);
       if (bytes.length > PHOTO_DISPLAY_MAX_BYTES) throw new HttpError(400, "표시본은 1MB 이하여야 합니다.");
@@ -39,6 +39,7 @@ export function registerCostPhotos(app: Express, db: Db, { access, mutate }: Sit
       recheckUploadSession(db, req);
       mutate(req, res, `cost:photo:display:${row.site_id}:${row.id}:${fileId}`, { fileId, size: bytes.length, sha256 }, () => {
         const current = period(req, true);
+        if (current.version !== version) throw new HttpError(409, "원장이 다른 곳에서 바뀌었습니다. 최신 조회 후 표시본을 다시 만드세요.");
         const file = db.prepare("SELECT format FROM cost_evidence_files WHERE id=? AND period_id=? AND site_id=?").get(fileId, current.id, current.site_id) as { format: string } | undefined;
         if (!file) throw new HttpError(404, "이 월의 보존 원본을 찾을 수 없습니다.");
         if (file.format === "application/pdf") throw new HttpError(400, "PDF 원본은 사진대지 표시본을 만들 수 없습니다.");

@@ -3,9 +3,9 @@ import { z } from "zod";
 import type { Db } from "./db.js";
 import { HttpError, type SiteOperations } from "./site-operations.js";
 import { costExpenses, costPeriodView, getCostPeriod, type CostCategory, type CostExpense } from "./cost-model.js";
-import { moneyUnits, decimalText } from "./cost-money.js";
+import { moneyUnits, decimalText, quantityUnits } from "./cost-money.js";
 import { percentText } from "./cost-dashboard.js";
-import { fixed as fixedClosure } from "./cost-output.js";
+import { fixed as fixedClosure, boundedCostOutput } from "./cost-output.js";
 import { escapeHtml as e } from "./print.js";
 // 법정 서식 A안 1단계 (docs/LEGAL_FORMS_PROPOSAL.md): 표지·내역집계표·사용내역(갑)·총괄 as HTML,
 // same document order, page capacity and values as the original PEDIT-SC (src/excel-summary-settings.js).
@@ -25,6 +25,8 @@ const won = (v: bigint | string) => {
   const t = typeof v === "string" ? v : decimalText(v), [i, f] = t.split(".");
   return i.replace(/\B(?=(\d{3})+(?!\d))/g, ",") + (f ? "." + f : "");
 };
+// "9. 위험성평가 …" 처럼 이름에 이미 번호가 있으면 한 번만 찍는다 (SC 채우기로 만든 원장의 이름이 그렇다).
+const named = (c: CostCategory) => `${c.scCode}. ${e(c.label.replace(new RegExp(`^\\s*${c.scCode}\\s*[.．]\\s*`), ""))}`;
 const krMonth = (m: string) => `${m.slice(0, 4)}년 ${Number(m.slice(5, 7))}월`; // original monthKoreanLabel: no zero pad
 // original spacedName: 2~4 Hangul syllables are spaced ("홍길동" -> "홍 길 동").
 const spacedName = (v: string) => { const t = v.replace(/\s/g, ""); return /^[가-힣]{2,4}$/.test(t) ? t.split("").join(" ") : v; };
@@ -85,7 +87,7 @@ ${code8 ? `<p>원본 양식과 같이 8번(본사) 열이 없습니다. 8번 사
 <tr><th>계상된 안전관리비(전체)</th><td>${won(budget)}</td><th>공사진척도에 따른 사용기준금액(전체)</th><td>${won(standard)}</td></tr></tbody></table>
 <h2>사 용 금 액</h2><table><thead><tr><th>항 목</th><th>전월누계</th><th>당월금액</th><th>비율(%)</th><th>누계</th></tr></thead><tbody>
 <tr><th>계</th><td>${won(t.opening)}</td><td>${won(t.current)}</td><td>${pct(ratio(t.cumulative))}</td><td>${won(t.cumulative)}</td></tr>
-${rows.map((c) => `<tr><th>${c.scCode}. ${e(c.label)}</th><td>${won(c.opening)}</td><td>${won(c.current)}</td><td>${pct(ratio(c.cumulative))}</td><td>${won(c.cumulative)}</td></tr>`).join("")}</tbody></table>
+${rows.map((c) => `<tr><th>${named(c)}</th><td>${won(c.opening)}</td><td>${won(c.current)}</td><td>${pct(ratio(c.cumulative))}</td><td>${won(c.cumulative)}</td></tr>`).join("")}</tbody></table>
 <p>건설업 표준안전관리비계상 및 사용기준 고시 제10조 1항 규정에 의하여 위와같이 사용내역을 제출합니다.</p>
 <p>${s.writtenDate ? `${s.writtenDate.slice(0, 4)} 년 ${s.writtenDate.slice(5, 7)}월 ${s.writtenDate.slice(8, 10)}일` : "작성일 미입력"}</p>
 <p>작성자 · 안전관리자 · 성명 : ${e(spacedName(s.author))} (인)</p><p>작성 확인자 · 직급 : 현장 대리인 · 성명 : ${e(spacedName(s.reviewer))} (인)</p></section>`;
@@ -93,7 +95,7 @@ ${rows.map((c) => `<tr><th>${c.scCode}. ${e(c.label)}</th><td>${won(c.opening)}<
 <table><thead><tr><th rowspan="2">사 용 항 목</th><th rowspan="2">계 획 금 액</th><th colspan="3">사 용 금 액</th><th rowspan="2">잔 액</th><th rowspan="2">비 고</th></tr>
 <tr><th>전회까지</th><th>금회금액</th><th>소 계(누계금액)</th></tr></thead><tbody>
 <tr><th>계</th><td>${won(t.plan)}</td><td>${won(t.opening)}</td><td>${won(t.current)}</td><td>${won(t.cumulative)}</td><td>${won(t.remaining)}</td><td></td></tr>
-${rows.map((c) => `<tr><th>${c.scCode}. ${e(c.label)}</th><td>${won(c.plan)}</td><td>${won(c.opening)}</td><td>${won(c.current)}</td><td>${won(c.cumulative)}</td><td>${won(c.remaining)}</td><td></td></tr>`).join("")}</tbody></table>
+${rows.map((c) => `<tr><th>${named(c)}</th><td>${won(c.plan)}</td><td>${won(c.opening)}</td><td>${won(c.current)}</td><td>${won(c.cumulative)}</td><td>${won(c.remaining)}</td><td></td></tr>`).join("")}</tbody></table>
 <p>※ 첨부：사용항목별 세부내역 (양식 별첨)</p></section>`;
   return `<!doctype html><html lang="ko"><head><meta charset="utf-8"><title>${e(view.month)} 산업안전보건관리비 법정 서식</title><link rel="stylesheet" href="/print.css"></head><body><main>
 <p class="form-note">${closure ? `마감본 ${closure.number}에 고정된 값입니다.${closure.details ? "" : " 이 마감본은 인건비 구분·항목별 추가필드를 고정하기 전 기록이라 그 값이 비어 있습니다."}` : view.status === "open" ? "작성 중 원장의 현재 값입니다. 마감 후 다시 출력하세요." : "마감 원장 기준입니다."} 원본 엑셀 양식의 문서 순서·값을 HTML로 재현했으며 모양은 근사입니다. 법적 적합성 판단이 아닙니다.</p>
@@ -103,7 +105,7 @@ export function registerLegalForms(app: Express, db: Db, { access }: SiteOperati
   app.get("/api/sites/:siteId/cost-periods/:id/legal-forms/print", (req, res) => {
     access(req, true, true);
     const q = z.object({ closureId: z.uuid().optional() }).strict().parse(req.query);
-    res.type("html").send(printLegalForms(legalForms(db, String(req.params.siteId), String(req.params.id), q.closureId)));
+    res.type("html").send(boundedCostOutput(printLegalForms(legalForms(db, String(req.params.siteId), String(req.params.id), q.closureId))));
   });
 }
 // 2단계: 사용내역(을) and 항목 1~9 상세, from the original src/excel-expenses.js and src/detail-sheets.js.
@@ -127,7 +129,7 @@ function usageSheets(f: Forms) {
         if (x) pageSum += moneyUnits(x.amount);
         // original expenseDescription: code 1 drops the "장비유도수 및 화기감시자(...)" wrapper
         const text = x ? (c.scCode === 1 && /^장비유도수 및 화기감시자\(.*\)$/.test(x.description) ? x.description.slice(13, -1) : x.description) : "";
-        return `<tr>${i === 0 ? `<th rowspan="${cap}">${c.scCode}. ${e(c.label)}</th>` : ""}${x ? cell(x.spend_date) + cell(text) + cell(x.quantity) + cell(won(x.unit_price_won)) + cell(won(x.amount)) : "<td></td><td></td><td></td><td></td><td></td>"}${i === 0 ? `<td rowspan="${cap}">${won(c.current)}</td>` : ""}</tr>`;
+        return `<tr>${i === 0 ? `<th rowspan="${cap}">${named(c)}</th>` : ""}${x ? cell(x.spend_date) + cell(text) + cell(x.quantity) + cell(won(x.unit_price_won)) + cell(won(x.amount)) : "<td></td><td></td><td></td><td></td><td></td>"}${i === 0 ? `<td rowspan="${cap}">${won(c.current)}</td>` : ""}</tr>`;
       }).join("");
     }).join("");
     out.push(`<section class="form-page"><p>첨부 # 1</p><h1>${krMonth(f.view.month)} 항목별 사용내역${pages > 1 ? ` (${page + 1})` : ""}</h1>
@@ -136,7 +138,7 @@ function usageSheets(f: Forms) {
   }
   return out.join("");
 }
-type Detail = { code: number; title: string; capacity: number; heads: string[]; row: (x: CostExpense, d: Record<string, string>, f: Forms, cum: Map<string, [number, bigint]>) => string[]; notes?: string[]; pre?: string };
+type Detail = { code: number; title: string; capacity: number; heads: string[]; row: (x: CostExpense, d: Record<string, string>, f: Forms, cum: Map<string, [bigint, bigint]>) => string[]; notes?: string[]; pre?: string; byDate?: true };
 const n = (v: string | undefined) => (v ? won(v) : "");
 const DETAILS: Detail[] = [
   { code: 1, title: "1. 안전관리자의 임금 등 지급현황", capacity: 22, pre: "<p>별지 제5-1호 서식 (2.6.4. 관련)</p><h2>사용항목별 지급현황</h2>",
@@ -154,9 +156,9 @@ const DETAILS: Detail[] = [
     heads: ["구 분", "계획 수량", "계획 금액", "전월까지 수량", "전월까지 금액", "금월 일자", "금월 수량", "금월 금액", "누계 수량", "누계 금액", "비고"],
     // shortcut: the original adds a fixed previous-stock table (config previousProtectionStock); this app has none, so 누계 starts at 0 each month.
     row: (x, _d, _f, cum) => {
-      const key = x.description.replace(/\s+/g, ""), [q, a] = cum.get(key) ?? [0, 0n], next: [number, bigint] = [q + Number(x.quantity), a + moneyUnits(x.amount)];
+      const key = x.description.replace(/\s+/g, ""), [q, a] = cum.get(key) ?? [0n, 0n], next: [bigint, bigint] = [q + quantityUnits(x.quantity), a + moneyUnits(x.amount)]; // exact: 0.1 + 0.2 prints 0.3
       cum.set(key, next);
-      return [x.description, "", "", "", "", x.spend_date, x.quantity, won(x.amount), String(next[0]), won(next[1]), ""];
+      return [x.description, "", "", "", "", x.spend_date, x.quantity, won(x.amount), decimalText(next[0]), won(next[1]), ""];
     },
     notes: [" * 계획은 안전관리비 예산 내역서 사항 기재", " * 개인보호구 지급대장은 별도 관리", " * 누계는 이 달 입력분만 셉니다(전월까지 품목 재고 정보 없음)."] },
   { code: 4, title: "4. 안전보건진단비 등 사용현황", capacity: 9, heads: ["구 분", "진단기관(검사기관)", "사용일자", "소요비용", "지급내역", "비 고"],
@@ -168,12 +170,12 @@ const DETAILS: Detail[] = [
     row: (x, d) => [x.description, x.spend_date, d.vendor ?? "", d.people || x.quantity, won(x.amount), won(x.unit_price_won)], notes: ["* 관련 영수증 등 증빙자료 첨부"] },
   { code: 7, title: "7. 건설재해예방 기술지도비 사용현황", capacity: 8, heads: ["지 도 항 목", "지 도 기 관", "점 검 일", "소 요 경 비", "비 고"],
     row: (x, d) => [x.description, d.agency ?? "", x.spend_date, won(x.amount), d.note ?? ""] },
-  { code: 8, title: "8. 본사 전담조직 근로자 임금 등 사용현황", capacity: 3,
+  { code: 8, title: "8. 본사 전담조직 근로자 임금 등 사용현황", capacity: 3, byDate: true,
     pre: `<p>- 조직 현황</p><table><thead><tr><th>시공능력 평가순위</th><th>조직명</th><th>직책</th><th>인원 수</th><th>안전보건관리비 계상총액</th><th>본사 임금 등 계상액(계획)</th></tr></thead><tbody><tr><td></td><td></td><td></td><td></td><td></td><td></td></tr></tbody></table><p>- 사용 내역</p>`,
     heads: ["구 분", "소 속", "직 책", "성 명", "보직일", "지급액", "지급일", "비고"],
     row: (x, d) => [x.description, d.company ?? "", d.role ?? "", d.personName ?? "", d.positionedDate ?? "", won(x.amount), x.spend_date, d.note ?? ""],
     notes: ["* 주 : 사용내역은 항목별 사용일자가 빠른 순서로 작성"] },
-  { code: 9, title: "9. 위험성평가 등에 따른 소요비용", capacity: 8,
+  { code: 9, title: "9. 위험성평가 등에 따른 소요비용", capacity: 8, byDate: true,
     heads: ["품목명", "결정일 위험성평가등", "결정일 노사협의등", "계획 단가", "계획 수량", "계획 금액", "사용일", "소요경비 단가", "소요경비 수량", "소요경비 금액", "지급내역", "비고"],
     row: (x, d) => { const labor = (d.decisionType ?? "").includes("노사"); return [x.description, labor ? "" : d.decisionDate ?? "", labor ? d.decisionDate ?? "" : "", "", "", "", x.spend_date, won(x.unit_price_won), x.quantity, won(x.amount), d.paymentDetails ?? "", d.note ?? ""]; },
     notes: ["* 주 : 사용내역은 항목별 사용일자가 빠른 순서로 작성"] },
@@ -183,7 +185,9 @@ function detailSheets(f: Forms) {
   return DETAILS.map((def) => {
     const c = f.codes.get(def.code);
     if (!c) return "";
-    const rows = rowsOf(def.code), pages = pagesOf(rows.length, def.capacity), cum = new Map<string, [number, bigint]>();
+    // 8·9번 서식의 주: "사용일자가 빠른 순서" (같은 날은 입력 순서 유지).
+    const rows = def.byDate ? [...rowsOf(def.code)].sort((a, b) => a.spend_date.localeCompare(b.spend_date)) : rowsOf(def.code),
+      pages = pagesOf(rows.length, def.capacity), cum = new Map<string, [bigint, bigint]>();
     return Array.from({ length: pages }, (_, page) => {
       const slice = rows.slice(page * def.capacity, page * def.capacity + def.capacity),
         body = Array.from({ length: def.capacity }, (_, i) => `<tr>${slice[i] ? def.row(slice[i], f.view.details[slice[i].id] ?? {}, f, cum).map(cell).join("") : def.heads.map(() => "<td></td>").join("")}</tr>`).join("");

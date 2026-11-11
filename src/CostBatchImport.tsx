@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { api, type Site } from "./api";
 import { useDraftGuard } from "./useDraftGuard";
-import type { CostPeriod } from "./cost-types";
+import { won, type CostPeriod } from "./cost-types";
 import type { CostBatchPreview } from "../server/cost-batch";
 import { readCostExcel, type ExcelImport } from "./cost-excel-rows";
 import { XLSX_LIMITS } from "./xlsx-read";
@@ -265,7 +265,7 @@ export function CostBatchImport({
         <aside>
           <h3>일괄 저장 영수증</h3>
           <p>
-            {receipt.count}행 · 추가 금액 {receipt.batchAmount}원 · 결과 원장 v
+            {receipt.count}행 · 추가 금액 {won(receipt.batchAmount)}원 · 결과 원장 v
             {receipt.period.version}
           </p>
           <p>검토 지문 {receipt.previewDigest}</p>

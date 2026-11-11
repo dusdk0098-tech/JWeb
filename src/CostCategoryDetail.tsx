@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { api } from "./api";
 import type { Page } from "./attendance-types";
-import type { CostExpense, CostPeriod } from "./cost-types";
+import { won, type CostExpense, type CostPeriod } from "./cost-types";
 // Read-only "항목별 상세" view of the original PEDIT-SC app: one category's active rows this month.
 export function CostCategoryDetail({
   base,
@@ -48,12 +48,12 @@ export function CostCategoryDetail({
               setOffset(0);
             }}
           >
-            {c.label} · {c.current}원
+            {c.label} · {won(c.current)}원
           </button>
         ))}
       </div>
       <h3>
-        {selected?.label} 사용현황 · 이번 월 {selected?.current}원
+        {selected?.label} 사용현황 · 이번 월 {selected ? won(selected.current) : ""}원
       </h3>
       {error && <p role="alert">{error}</p>}
       {loading ? (
@@ -74,9 +74,9 @@ export function CostCategoryDetail({
               <tr key={e.id}>
                 <td>{e.spend_date}</td>
                 <td>{e.description}</td>
-                <td>{e.quantity}</td>
-                <td>{e.unit_price_won}</td>
-                <td>{e.amount}</td>
+                <td>{won(e.quantity)}</td>
+                <td>{won(e.unit_price_won)}</td>
+                <td>{won(e.amount)}</td>
               </tr>
             ))}
           </tbody>

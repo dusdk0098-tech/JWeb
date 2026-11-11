@@ -95,6 +95,9 @@ td {
 .form-page table {
   width: 100%;
   border-collapse: collapse;
+  /* many narrow columns: at the body size amounts split across lines (1,000,00|0); measured at A4, 8pt keeps them whole */
+  font-size: 8pt;
+  line-height: 1.35;
 }
 .form-page th,
 .form-page td {

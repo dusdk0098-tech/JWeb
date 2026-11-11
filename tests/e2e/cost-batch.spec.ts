@@ -116,6 +116,6 @@ test("cost Excel import fills the TSV from a synthetic workbook and saves throug
   await page.getByRole("button", { name: "저장 없이 TSV 검토", exact: true }).click();
   page.once("dialog", (d) => d.accept());
   await page.getByRole("button", { name: "검토한 지출 전체 저장", exact: true }).click();
-  await expect(page.getByText("3행 · 추가 금액 3584987.5원 · 결과 원장 v4", { exact: true })).toBeVisible();
+  await expect(page.getByText("3행 · 추가 금액 3,584,987.5원 · 결과 원장 v4", { exact: true })).toBeVisible();
   await expect(page.getByLabel("붙여넣을 비용 TSV", { exact: true })).toHaveValue("");
 });
