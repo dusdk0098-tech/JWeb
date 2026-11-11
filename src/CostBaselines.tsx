@@ -1,7 +1,7 @@
 import { CostOutputControl } from "./CostOutputControl";
 import { CostEvidenceComparison } from "./CostEvidenceComparison";
 import { useDraftGuard } from "./useDraftGuard";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { api } from "./api";
 import type { CostPeriod } from "./cost-types";
 import type { CostBaseline, Statement, costBaselineComparison } from "../server/cost-baseline-model";
@@ -16,6 +16,8 @@ export function CostBaselines({base,period,onDirtyChange,onBusyChange}:{base:str
   const guard=useDraftGuard(dirty,busy,onDirtyChange,onBusyChange||noBusy);
   async function run(fn:()=>Promise<void>) {setBusy(true);setError('');try {await fn();} catch(e){setError((e as Error).message);}finally{setBusy(false);}}
   async function list(at=offset) { const result=await api<Page<Summary>>(`${base}/baselines?offset=${at}`);setPage(result);setOffset(at); }
+  // 들어오면 바로 목록을 보여 준다(새로고침을 눌러야 보이던 것).
+  useEffect(()=>{void run(()=>list(0));},[base]);
   async function open(id:string,at=0) {
     const value=await api<Baseline>(`${base}/baselines/${id}`);
     const records=await api<Page<StatementView>>(`${base}/baselines/${id}/statements?offset=${at}`);

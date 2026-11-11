@@ -16,7 +16,8 @@ import { useEffect, useState } from "react";
 import { api, type Site } from "./api";
 import type { Page } from "./attendance-types";
 import { useDraftGuard } from "./useDraftGuard";
-import { costWarning, type CostPeriod, type CostExpense } from "./cost-types";
+import { costWarning, won, type CostPeriod, type CostExpense } from "./cost-types";
+import type { CostSearchResult } from "../server/cost-search";
 import { laborKinds } from "../server/cost-labor-kinds";
 import { costDetailFields } from "../server/cost-detail-fields";
 import { CostHistory } from "./CostHistory";
@@ -94,7 +95,7 @@ export function CostPeriodEditor({
     return () => {
       active = false;
     };
-  }, [base, record.status, record.version]);
+  }, [base, record.status, record.version, tick]); // tick: 증빙·사진은 원장 버전을 올리지 않으므로 돌아올 때 다시 확인
   useEffect(() => {
     let active = true;
     setLoading(true);
@@ -161,6 +162,7 @@ export function CostPeriodEditor({
       const added = method === "POST" && path === "/expenses" ? (body as { expense: ExpenseForm }).expense : null;
       const blank = added ? { ...added, description: "", quantity: "1", unitPriceWon: "" } : null;
       setForm(blank);setNextBlank(blank ? JSON.stringify(blank) : null);setPresetSource(null);
+      if (added) setDetails({}); // 규격·성명 같은 추가필드는 다음 행으로 넘기지 않는다
       setEditing(null);
       setBudget(null);
       setReason("");
@@ -222,9 +224,22 @@ export function CostPeriodEditor({
     );
   }
   const open = record.status === "open";
+  // SC 항목 번호가 있는 원장에서는 인건비 구분을 1번 항목에서만 고르게 한다(다른 항목에 붙으면 인건비 조회 합계에 섞인다).
+  // 이미 붙어 있는 행은 칸을 보여 주어 지울 수 있게 한다. 서버 계약은 그대로다.
+  const laborAllowed = (categoryId: string) => { const code = record.categories.find((c) => c.id === categoryId)?.scCode; return code === undefined || code === 1; };
+  // 중복 경고: 이 쪽의 50행을 먼저 보고, 없으면 같은 월 전체를 기존 검색으로 한 번 확인한다(검색이 안 되면 경고 없이 저장).
+  async function duplicate() {
+    if (!form) return false;
+    const same = (r: { status: string; categoryId: string; spendDate: string; description: string; quantity: string; unitPriceWon: string }) =>
+      r.status === "active" && r.categoryId === form.categoryId && r.spendDate === form.spendDate && r.description === form.description.trim() && r.quantity === form.quantity && r.unitPriceWon === form.unitPriceWon;
+    if (rows.items.some((r) => same({ status: r.status, categoryId: r.category_id, spendDate: r.spend_date, description: r.description, quantity: r.quantity, unitPriceWon: r.unit_price_won }))) return true;
+    if (!rows.hasMore && offset === 0) return false;
+    const query = new URLSearchParams({ monthFrom: record.month, monthTo: record.month, dateFrom: form.spendDate, dateTo: form.spendDate, status: "active", text: form.description.trim().slice(0, 100) });
+    return api<CostSearchResult>(`/sites/${site.id}/cost-expense-search?${query}`).then((found) => found.items.some(same)).catch(() => false);
+  }
   if(evidence)return <CostEvidence base={base} onDirtyChange={setBatchDirty} onBusyChange={setBatchBusy} onClose={()=>{
     setEvidence(false); setBusy(true);
-    api<CostPeriod>(base).then(setRecord).catch(e=>setError(e.message)).finally(()=>setBusy(false));
+    api<CostPeriod>(base).then(v=>{setRecord(v);setTick(t=>t+1);}).catch(e=>setError(e.message)).finally(()=>setBusy(false));
   }}/>;
   if(presets)return <CostInputPresets siteId={site.id} onClose={()=>setPresets(false)} onDirtyChange={setBatchDirty} onBusyChange={setBatchBusy} onApply={open?(preset)=>{if(!confirm(`설명 ${preset.body.defaults.description} / 수량 ${preset.body.defaults.quantity} / 단가 ${preset.body.defaults.unitPriceWon}을 미저장 새 지출에 적용할까요? 지출일과 비용 항목은 비워지며 직접 선택해야 합니다. 원장은 저장하지 않습니다.`))return;const applied=costPresetDraft(preset);setForm(applied.form);setPresetSource(applied);setEditing(null);setReason("");setPresets(false);}:undefined}/>;
   if(settings)return <CostSettingsForm base={base} period={record} onSaved={setRecord} onClose={()=>setSettings(false)} onDirtyChange={setBatchDirty} onBusyChange={setBatchBusy}/>;
@@ -347,12 +362,12 @@ export function CostPeriodEditor({
           {record.totals.byCategory.map((c) => (
             <tr key={c.id}>
               <th>{c.label}</th>
-              <td>{c.plan}</td>
-              <td>{c.opening}</td>
-              <td>{c.current}</td>
-              <td>{c.cumulative}</td>
+              <td>{won(c.plan)}</td>
+              <td>{won(c.opening)}</td>
+              <td>{won(c.current)}</td>
+              <td>{won(c.cumulative)}</td>
               <td>
-                {c.remaining}
+                {won(c.remaining)}
                 {c.overPlan ? " (계획 초과)" : ""}
               </td>
             </tr>
@@ -362,7 +377,7 @@ export function CostPeriodEditor({
             {(
               ["plan", "opening", "current", "cumulative", "remaining"] as const
             ).map((k) => (
-              <td key={k}>{record.totals.total[k]}</td>
+              <td key={k}>{won(record.totals.total[k])}</td>
             ))}
           </tr>
         </tbody>
@@ -571,6 +586,7 @@ export function CostPeriodEditor({
               onChange={(e) => {
                 setForm({ ...form, categoryId: e.target.value });
                 setDetails({});
+                if (!laborAllowed(e.target.value)) setLaborKind("");
               }}
             >
               <option value="">비용 항목을 직접 선택하세요</option>
@@ -648,6 +664,7 @@ export function CostPeriodEditor({
               )}
             </label>
           ))}
+          {(laborAllowed(form.categoryId) || laborKind) && (
           <label>
             인건비 구분 (인건비 항목일 때)
             <select value={laborKind} onChange={(e) => setLaborKind(e.target.value)}>
@@ -657,6 +674,7 @@ export function CostPeriodEditor({
               ))}
             </select>
           </label>
+          )}
           <p>
             신규 행은 변경 사유를 사용하지 않습니다. 위 사유를 비운 뒤
             저장하세요. 행 금액은 서버가 정확히 계산합니다. 쉼표, 지수, 음수,
@@ -664,10 +682,8 @@ export function CostPeriodEditor({
           </p>
           <button
             disabled={!form.categoryId || !form.spendDate || (editing ? !reason.trim() : !!reason)}
-            onClick={() =>
-              // shortcut: checks only the 50 rows on this page; a server-side check would need a new query.
-              (editing || !rows.items.some((r) => r.status === "active" && r.category_id === form.categoryId && r.spend_date === form.spendDate &&
-                r.description === form.description.trim() && r.quantity === form.quantity && r.unit_price_won === form.unitPriceWon) ||
+            onClick={async () =>
+              (editing || !(await duplicate()) ||
                 window.confirm("같은 항목·일자·내용·수량·단가의 지출이 이미 있습니다. 그래도 저장할까요?")) &&
               void send(
                 "/expenses" + (editing ? "/" + editing.id : ""),
@@ -706,8 +722,8 @@ export function CostPeriodEditor({
           <article key={row.id} className="expense-row" data-status={row.status}>
             <h4>{row.description}</h4>
             <p>
-              {row.spend_date} · {row.quantity} × {row.unit_price_won}원 ={" "}
-              {row.amount}원 ·{" "}
+              {row.spend_date} · {won(row.quantity)} × {won(row.unit_price_won)}원 ={" "}
+              {won(row.amount)}원 ·{" "}
               {row.status === "active" ? "유효" : "취소 (합계 제외)"}
               {record.laborKinds[row.id] && ` · 인건비 ${record.laborKinds[row.id]}`}
             </p>

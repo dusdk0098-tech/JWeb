@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { api, type Site } from "./api";
+import { won } from "./cost-types";
 type LaborPage = {
   items: { id: string; month: string; kind: string; spend_date: string; description: string; quantity: string; amount: string }[];
   hasMore: boolean;
@@ -31,7 +32,7 @@ export function CostLabor({ site, onClose }: { site: Site; onClose: () => void }
   return (
     <section>
       <button onClick={onClose}>원장 목록으로 돌아가기</button>
-      <h2>인건비 조회 · 합계 {page?.total ?? "-"}원</h2>
+      <h2>인건비 조회 · 합계 {page ? won(page.total) : "-"}원</h2>
       <p>지출에 인건비 구분을 지정한 유효 행만 모읍니다. 구분이 없는 지출은 포함하지 않습니다.</p>
       <label>
         월 (비우면 전체 월)
@@ -46,7 +47,7 @@ export function CostLabor({ site, onClose }: { site: Site; onClose: () => void }
         {page?.byKind.map((k) => (
           <article className="panel" key={k.kind}>
             <h3>{k.kind}</h3>
-            <p>{k.amount}원</p>
+            <p>{won(k.amount)}원</p>
           </article>
         ))}
       </div>
@@ -69,8 +70,8 @@ export function CostLabor({ site, onClose }: { site: Site; onClose: () => void }
                 <td>{r.month}</td>
                 <td>{r.kind}</td>
                 <td>{r.description}</td>
-                <td>{r.quantity}</td>
-                <td>{r.amount}</td>
+                <td>{won(r.quantity)}</td>
+                <td>{won(r.amount)}</td>
               </tr>
             ))}
           </tbody>

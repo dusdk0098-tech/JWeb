@@ -39,5 +39,7 @@ export type CostPeriod = {
     cancelledCount: number;
   };
 };
+// 화면 표시용 천 단위 쉼표. 값 자체(입력·전송)는 쉼표 없는 정확한 문자열 그대로다.
+export const won = (v: string) => { const [whole, fraction] = v.split("."); return whole.replace(/\B(?=(\d{3})+(?!\d))/g, ",") + (fraction ? "." + fraction : ""); };
 export const costWarning =
   "수기 비용 원장 · 법정 인정액·세금·재고 계산이 아닙니다. 수량은 양수 소수 6자리, 단가는 양수 원 단위 정수입니다. 금액은 반올림하지 않습니다.";

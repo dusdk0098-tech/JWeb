@@ -219,7 +219,7 @@ export function CostSplits({
           <h3>선택 원행: {info.expense.description}</h3>
           <p>
             {info.expense.quantity} × {info.expense.unit_price_won} ={" "}
-            {info.expense.amount}원 · 항목 {info.expense.category_id} · 날짜{" "}
+            {info.expense.amount}원 · 항목 {period.categories.find((c) => c.id === info.expense.category_id)?.label ?? info.expense.category_id} · 날짜{" "}
             {info.expense.spend_date}
           </p>
           {info.stockReceiptId && <p>활성 연결 입고 {info.stockReceiptId} 때문에 분할할 수 없습니다. 비용행의 연결 입고 화면에서 실제 기록을 확인하세요. 비용/재고를 자동 상쇄하지 않습니다.</p>}

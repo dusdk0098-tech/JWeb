@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { api, type Site } from "./api";
+import { won } from "./cost-types";
 type Dashboard = {
   next: string;
   months: { id: string; month: string; status: string; current: string; count: number }[];
@@ -42,10 +43,10 @@ export function CostDashboard({ site, onClose }: { site: Site; onClose: () => vo
         <>
           <div className="cards">
             {[
-              ["계획금액", l.total.plan + "원"],
-              ["전회누계", l.total.opening + "원"],
-              ["금월사용", l.total.current + "원"],
-              ["잔액", l.total.remaining + "원"],
+              ["계획금액", won(l.total.plan) + "원"],
+              ["전회누계", won(l.total.opening) + "원"],
+              ["금월사용", won(l.total.current) + "원"],
+              ["잔액", won(l.total.remaining) + "원"],
               ["예상 소진", l.monthsLeft === null ? "계산 불가" : `약 ${l.monthsLeft}개월`],
             ].map(([k, v]) => (
               <article className="panel" key={k}>
@@ -55,7 +56,7 @@ export function CostDashboard({ site, onClose }: { site: Site; onClose: () => vo
             ))}
           </div>
           <p>
-            계상안전관리비 {l.safetyBudgetWon ? `${l.safetyBudgetWon}원 · 누계 사용비율 ${l.usedPercent}%` : "미입력 — 현장 설정에서 입력하면 사용비율·예상 소진을 계산합니다."}
+            계상안전관리비 {l.safetyBudgetWon ? `${won(l.safetyBudgetWon)}원 · 누계 사용비율 ${l.usedPercent}%` : "미입력 — 현장 설정에서 입력하면 사용비율·예상 소진을 계산합니다."}
             {" "}예상 소진은 (계상안전관리비 − 누계) ÷ 사용액이 있는 월의 평균이며 추정치입니다.
           </p>
           <h3>월별 사용액</h3>
@@ -73,7 +74,7 @@ export function CostDashboard({ site, onClose }: { site: Site; onClose: () => vo
               {data.months.map((m) => (
                 <tr key={m.id}>
                   <td>{m.month}</td>
-                  <td>{m.current}원</td>
+                  <td>{won(m.current)}원</td>
                   <td>{m.count}</td>
                   <td>{m.status === "open" ? "작성 중" : "마감"}</td>
                   <td aria-hidden="true">
@@ -100,12 +101,12 @@ export function CostDashboard({ site, onClose }: { site: Site; onClose: () => vo
               {l.byCategory.map((c) => (
                 <tr key={c.id}>
                   <th>{c.label}</th>
-                  <td>{c.plan}</td>
-                  <td>{c.opening}</td>
-                  <td>{c.current}</td>
-                  <td>{c.cumulative}</td>
+                  <td>{won(c.plan)}</td>
+                  <td>{won(c.opening)}</td>
+                  <td>{won(c.current)}</td>
+                  <td>{won(c.cumulative)}</td>
                   <td>{c.usedPercent === null ? "-" : c.usedPercent + "%"}</td>
-                  <td>{c.remaining}</td>
+                  <td>{won(c.remaining)}</td>
                 </tr>
               ))}
             </tbody>

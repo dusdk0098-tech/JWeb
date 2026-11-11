@@ -24,7 +24,8 @@ export function costDashboard(db: Db, site: string) {
   const latest = months.at(-1);
   if (!latest) return { next: "최초 원장 만들기", months: [], latest: null };
   const settings = readCostSettings(db, latest.id),
-    budget = settings?.safetyBudgetWon ? moneyUnits(settings.safetyBudgetWon) : null,
+    entered = settings?.safetyBudgetWon ? moneyUnits(settings.safetyBudgetWon) : 0n,
+    budget = entered > 0n ? entered : null, // 0원은 비율·소진을 계산할 수 없으므로 미입력과 같게 다룬다
     used = months.map((m) => moneyUnits(m.current)).filter((v) => v > 0n),
     cumulative = moneyUnits(latest.totals.total.cumulative);
   let monthsLeft: string | null = null;
@@ -51,7 +52,7 @@ export function costDashboard(db: Db, site: string) {
       id: latest.id,
       month: latest.month,
       status: latest.status,
-      safetyBudgetWon: settings?.safetyBudgetWon || null,
+      safetyBudgetWon: budget === null ? null : settings!.safetyBudgetWon,
       total: latest.totals.total,
       usedPercent: budget === null ? null : percentText(cumulative, budget),
       monthsLeft,
