@@ -2,11 +2,14 @@ import { useEffect, useRef, useState } from "react";
 import { api, uploadPhotoBoardDisplay, uploadPhotoBoardPhoto } from "./api";
 import { useDraftGuard } from "./useDraftGuard";
 import { makePhotoDisplay } from "./photo-display";
-import { boardFor, circleAt, drawBoard, drawItem, moveCircle, moveItem, photoInfoTsv, resizeCircle, rotateItem, type Scene, type SceneItem } from "./photo-scene";
+import { boardFor, circleAt, drawBoard, drawItem, moveCircle, moveItem, photoInfoTsv, resizeCircle, rotateItem, styleShape, widenRect, type Circle, type Scene, type SceneItem } from "./photo-scene";
+import { boardPhrases, forgetPhrase, rememberPhrases, todayText } from "./boardPhrases";
+import { zipStore } from "./zip-store";
 import { BOARD_MAX_ROWS, MAX_ZOOM, defaultBoard, panView, zoomView, type BoardPanel } from "../server/photo-view";
 import { ActionBar, Notice, PageHeader, Section, StatusChip } from "./ui";
 export type PhotoBoard = {
-  id: string; title: string; version: number; updatedAt: string; body: { siteName: string; work: string; footer: string }; scene: Scene;
+  id: string; title: string; version: number; updatedAt: string; scene: Scene;
+  body: { siteName: string; work: string; footer: string; sheet?: { perPage: 1 | 2 | 3 | 4 | 6 | 9; captions: boolean; fileNames: boolean; header: { project: string; trade: string; location: string; date: string } } };
   photos: { id: string; filename: string; format: string; size: number; width: number | null; height: number | null; hasDisplay: boolean; createdAt: string }[];
 };
 type Draft = { title: string; body: PhotoBoard["body"]; scene: Scene };
@@ -19,6 +22,8 @@ export function PhotoBoardEditor({ base, initial, writable, onClose, onDirtyChan
   const [board, setBoard] = useState(initial), [draft, setDraft] = useState<Draft>(draftOf(initial)), [past, setPast] = useState<Draft[]>([]), [future, setFuture] = useState<Draft[]>([]),
     [selected, setSelected] = useState<{ item: number; circle: number | null } | null>(null), [images, setImages] = useState<Record<string, HTMLImageElement>>({}),
     [busy, setBusy] = useState(false), [error, setError] = useState(""), [notice, setNotice] = useState("");
+  // 자주 쓰는 문구: kept on this device per site, suggested in every 보드판 내용 칸 (with today's date).
+  const siteId = /\/sites\/([^/]+)\//.exec(base + "/")?.[1] ?? "", [phrases, setPhrases] = useState(() => boardPhrases(siteId));
   const saved = useRef(JSON.stringify(draftOf(initial))), dirty = JSON.stringify(draft) !== saved.current,
     guard = useDraftGuard(dirty, busy, onDirtyChange, onBusyChange), path = `${base}/${board.id}`;
   useEffect(() => {
@@ -60,6 +65,8 @@ export function PhotoBoardEditor({ base, initial, writable, onClose, onDirtyChan
     try {
       const body = { version: board.version, ...draft }, next = await api<PhotoBoard>(path, "PUT", body, guard.key(path, body));
       setBoard(next); saved.current = JSON.stringify(draftOf(next)); setDraft(draftOf(next)); setNotice("저장했습니다.");
+      rememberPhrases(siteId, [...[next.scene.board, ...next.scene.items.map((i) => i.board)].flatMap((b) => b?.rows.map((r) => r.value) ?? []), ...Object.values(next.body.sheet?.header ?? {})]);
+      setPhrases(boardPhrases(siteId));
     } catch (e) { setError((e as Error).message + " 입력은 유지됩니다."); } finally { setBusy(false); }
   }
   function exportTsv() {
@@ -91,17 +98,46 @@ export function PhotoBoardEditor({ base, initial, writable, onClose, onDirtyChan
       setNotice(`PNG ${shown.length}장 보드를 만들었습니다.`);
     }, "image/png");
   }
+  // 4단계: each included photo as its own JPEG with rotation, zoom, highlights and 보드판 drawn in (the stored originals stay
+  // untouched), all in one ZIP. Pixel size = the shown part of the display copy.
+  async function exportJpegZip() {
+    const shown = draft.scene.items.filter((i) => i.included && images[i.photoId]);
+    if (!shown.length) { setError("포함된 사진이 없어 사진 묶음을 만들 수 없습니다."); return; }
+    setBusy(true); setError(""); setNotice("");
+    try {
+      const files: { name: string; data: Uint8Array }[] = [];
+      for (const [n, item] of shown.entries()) {
+        const img = images[item.photoId], turned = item.rotation % 180 !== 0, zoom = item.view?.zoom ?? 1,
+          canvas = document.createElement("canvas");
+        canvas.width = Math.round((turned ? img.height : img.width) / zoom); canvas.height = Math.round((turned ? img.width : img.height) / zoom);
+        const ctx = canvas.getContext("2d")!, b = boardFor(draft.scene, item);
+        ctx.fillStyle = "#fff"; ctx.fillRect(0, 0, canvas.width, canvas.height);
+        const r = drawItem(ctx, img, item, { x: 0, y: 0, w: canvas.width, h: canvas.height });
+        if (b) drawBoard(ctx, b, r);
+        const blob = await new Promise<Blob | null>((done) => canvas.toBlob(done, "image/jpeg", 0.92));
+        if (!blob) throw new Error("사진을 만들지 못했습니다.");
+        const original = board.photos.find((p) => p.id === item.photoId)?.filename ?? "사진";
+        files.push({ name: `${String(n + 1).padStart(3, "0")}_${original.replace(/\.[^.]+$/, "").replace(/[\\/:*?"<>|]/g, "_")}.jpg`, data: new Uint8Array(await blob.arrayBuffer()) });
+      }
+      const a = document.createElement("a"); a.href = URL.createObjectURL(new Blob([zipStore(files)], { type: "application/zip" }));
+      a.download = `${draft.title || "사진 보드"} 사진.zip`; a.click(); URL.revokeObjectURL(a.href);
+      setNotice(`사진 ${files.length}장을 ZIP으로 만들었습니다. 원본은 그대로입니다.`);
+    } catch (e) { setError((e as Error).message + " 편집 내용은 그대로입니다."); } finally { setBusy(false); }
+  }
+  const sheet = draft.body.sheet, setSheet = (next: NonNullable<PhotoBoard["body"]["sheet"]>) => change({ ...draft, body: { ...draft.body, sheet: next } });
   const placed = new Set(draft.scene.items.map((i) => i.photoId)), unplaced = board.photos.filter((p) => !placed.has(p.id));
   const sample = draft.scene.items.find((i) => i.included && images[i.photoId] && i.board === undefined);
   return <section className="panel photo-editor">
     <PageHeader back="사진 보드 목록으로" backDisabled={busy} onBack={() => { if (guard.canLeave()) onClose(); }} title={draft.title || "사진 보드"}
       status={dirty ? <StatusChip tone="pending">저장 안 됨</StatusChip> : <StatusChip tone="done">저장됨</StatusChip>}>
       <button className="secondary" disabled={busy} onClick={exportPng}>PNG 저장</button>
+      <button className="secondary" disabled={busy} onClick={() => void exportJpegZip()}>사진 묶음 ZIP 저장</button>
       <button className="secondary" disabled={busy || !draft.scene.items.length} onClick={exportTsv}>사진 정보표 TSV 저장</button>
       <a className="button secondary" href={`/api${path}/print`} target="_blank" rel="noreferrer">사진대지 인쇄 / PDF</a>
     </PageHeader>
     {error && <p role="alert">{error}</p>}
     {notice && <p role="status">{notice}</p>}
+    <datalist id="board-phrases"><option value={todayText()}>오늘 날짜</option>{phrases.map((p) => <option key={p} value={p} />)}</datalist>
     <fieldset disabled={!writable || busy}>
       <Section no={1} level={3} title="보드 정보">
       <div className="grid">
@@ -117,8 +153,23 @@ export function PhotoBoardEditor({ base, initial, writable, onClose, onDirtyChan
       <label>폴더 추가(안의 PNG·JPEG만)<input type="file" multiple {...{ webkitdirectory: "" }} onChange={(e) => { if (e.target.files?.length) void upload(Array.from(e.target.files)); e.target.value = ""; }} /></label>
       </div>
       </Section>
-      <Section no={3} level={3} title="보드판">
-      <p className="muted">사진 위에 항목·내용 표를 얹습니다. 원본 사진은 그대로 두고 미리보기·PNG·사진대지 인쇄에만 그립니다.</p>
+      <Section no={3} level={3} title="사진대지 양식">
+      <p className="muted">인쇄할 사진대지의 쪽당 장수와 머리글을 정합니다. 켜지 않으면 지금처럼 한 쪽에 2장씩 인쇄합니다.</p>
+      <label><input type="checkbox" checked={!!sheet} onChange={(e) => { const body = { ...draft.body }; if (e.target.checked) body.sheet = { perPage: 2, captions: true, fileNames: false, header: { project: "", trade: "", location: "", date: "" } }; else delete body.sheet; change({ ...draft, body }); }} />사진대지 양식 고르기</label>
+      {sheet && <div className="board-controls">
+        <label><span className="board-control-head">쪽당 장수</span><select aria-label="쪽당 장수" value={sheet.perPage} onChange={(e) => setSheet({ ...sheet, perPage: Number(e.target.value) as 1 })}>{[1, 2, 3, 4, 6, 9].map((n) => <option key={n} value={n}>{n}장</option>)}</select></label>
+        <label className="board-bold"><input type="checkbox" checked={sheet.captions} onChange={(e) => setSheet({ ...sheet, captions: e.target.checked })} />사진 아래 내용 칸</label>
+        <label className="board-bold"><input type="checkbox" disabled={!sheet.captions} checked={sheet.fileNames} onChange={(e) => setSheet({ ...sheet, fileNames: e.target.checked })} />설명이 비면 파일명 넣기</label>
+        {([["project", "공사명"], ["trade", "공종명"], ["location", "공사 위치"], ["date", "공사 일자"]] as const).map(([k, label]) =>
+          <label key={k}><span className="board-control-head">{label}</span><input aria-label={`머리글 ${label}`} maxLength={k === "date" ? 100 : 200} list="board-phrases" value={sheet.header[k]} onChange={(e) => setSheet({ ...sheet, header: { ...sheet.header, [k]: e.target.value } })} /></label>)}
+        <p className="muted span-2">머리글은 한 번 쓰면 모든 쪽에 찍힙니다. 네 칸이 모두 비면 머리글 표를 찍지 않습니다.</p>
+      </div>}
+      </Section>
+      <Section no={4} level={3} title="보드판">
+      <p className="muted">사진 위에 항목·내용 표를 얹습니다. 원본 사진은 그대로 두고 미리보기·PNG·사진대지 인쇄에만 그립니다. 내용 칸을 누르면 오늘 날짜와 이 기기에서 저장했던 문구가 제안으로 뜹니다.</p>
+      {phrases.length > 0 && <details className="advanced-tools"><summary>자주 쓰는 문구 {phrases.length}개 (이 기기에만 보관)</summary>
+        <ul>{phrases.map((p) => <li key={p}>{p} <button type="button" className="secondary" aria-label={`문구 지우기: ${p}`} onClick={() => { forgetPhrase(siteId, p); setPhrases(boardPhrases(siteId)); }}>지우기</button></li>)}</ul>
+      </details>}
       <label><input type="checkbox" checked={!!draft.scene.board} onChange={(e) => { const scene = { ...draft.scene }; if (e.target.checked) scene.board = defaultBoard(); else delete scene.board; change({ ...draft, scene }); }} />모든 사진에 보드판 넣기</label>
       {draft.scene.board && <div className="board-editor">
         <BoardFields name="보드판" value={draft.scene.board} onChange={(board) => change({ ...draft, scene: { ...draft.scene, board } })} />
@@ -127,7 +178,7 @@ export function PhotoBoardEditor({ base, initial, writable, onClose, onDirtyChan
       </Section>
     </fieldset>
     {unplaced.length > 0 && <p>배치 안 된 사진: {unplaced.map((p) => <button key={p.id} className="secondary" disabled={!writable || busy} onClick={() => setItems([...draft.scene.items, { photoId: p.id, included: true, rotation: 0, caption: "", circles: [] }])}>{p.filename} 배치</button>)}</p>}
-    {draft.scene.items.length > 0 && <Notice summary="사진을 누르면 원형 강조가 생깁니다. 끌어서 옮깁니다.">사진을 누르면 그 자리에 원형 강조가 생깁니다. 강조는 끌어서 옮기고(손가락도 가능), 고른 뒤 화살표(Shift는 10배)·+/−·Delete 또는 아래 버튼으로 조정합니다. 확대한 사진은 빈 곳을 끌어 보이는 위치를 옮깁니다.</Notice>}
+    {draft.scene.items.length > 0 && <Notice summary="사진을 누르면 원형 강조가 생깁니다. 끌어서 옮깁니다.">사진을 누르면 그 자리에 원형 강조가 생깁니다. 강조는 끌어서 옮기고(손가락도 가능), 고른 뒤 화살표(Shift는 10배)·+/−·Delete 또는 아래 버튼으로 조정합니다. 고른 강조는 모양(원·사각형)과 점선을 바꿀 수 있습니다. 확대한 사진은 빈 곳을 끌어 보이는 위치를 옮깁니다.</Notice>}
     <ol className="photo-items">
       {draft.scene.items.map((item, i) => {
         const photo = board.photos.find((p) => p.id === item.photoId);
@@ -165,6 +216,17 @@ export function PhotoBoardEditor({ base, initial, writable, onClose, onDirtyChan
               <button className="secondary" onClick={() => setItem(i, { ...item, circles: item.circles.map((x, j) => (j === selected.circle ? resizeCircle(x, -0.02) : x)) })}>강조 작게</button>
               <button className="secondary" onClick={() => { setItem(i, { ...item, circles: item.circles.filter((_, j) => j !== selected.circle) }); setSelected(null); }}>강조 삭제</button>
             </>}
+            {selected?.item === i && selected.circle !== null && item.circles[selected.circle] && (() => {
+              const at = selected.circle, c = item.circles[at], setShape = (next: Circle) => setItem(i, { ...item, circles: item.circles.map((x, j) => (j === at ? next : x)) });
+              return <>
+                <label>강조 모양<select value={c.kind ?? "circle"} onChange={(e) => setShape(styleShape(c, { kind: e.target.value as "rect" }))}><option value="circle">원</option><option value="rect">사각형</option></select></label>
+                <label><input type="checkbox" checked={!!c.dashed} onChange={(e) => setShape(styleShape(c, { dashed: e.target.checked }))} />점선</label>
+                {c.kind === "rect" && <>
+                  <button className="secondary" onClick={() => setShape(widenRect(c, 0.02))}>가로 넓게</button>
+                  <button className="secondary" onClick={() => setShape(widenRect(c, -0.02))}>가로 좁게</button>
+                </>}
+              </>;
+            })()}
             {selected?.item === i && selected.circle !== null && item.circles[selected.circle] && <label>강조 색<select value={item.circles[selected.circle].color} onChange={(e) => setItem(i, { ...item, circles: item.circles.map((x, j) => (j === selected.circle ? { ...x, color: e.target.value as "red" } : x)) })}><option value="red">빨강</option><option value="yellow">노랑</option><option value="blue">파랑</option></select></label>}
             <a className="button secondary" href={`/api${path}/photos/${item.photoId}/download`}>원본 다운로드</a>
           </fieldset>
@@ -189,7 +251,7 @@ function BoardFields({ name, value: b, onChange }: { name: string; value: BoardP
     <table className="board-rows"><thead><tr><th scope="col">항목</th><th scope="col">내용</th><th scope="col"><span className="sr-only">줄 삭제</span></th></tr></thead><tbody>
       {b.rows.map((r, i) => <tr key={i}>
         <td><input aria-label={`${name} ${i + 1}줄 항목`} maxLength={20} value={r.label} onChange={(e) => setRow(i, { label: e.target.value })} /></td>
-        <td><input aria-label={`${name} ${i + 1}줄 내용`} maxLength={200} value={r.value} onChange={(e) => setRow(i, { value: e.target.value })} /></td>
+        <td><input aria-label={`${name} ${i + 1}줄 내용`} maxLength={200} list="board-phrases" value={r.value} onChange={(e) => setRow(i, { value: e.target.value })} /></td>
         <td><button type="button" className="board-row-del" disabled={b.rows.length <= 1} aria-label={`${name} ${i + 1}줄 삭제`} onClick={() => set({ rows: b.rows.filter((_, j) => j !== i) })}>삭제</button></td>
       </tr>)}
     </tbody></table>
@@ -235,13 +297,13 @@ export function ItemCanvas({ img, item, board, label, selectedCircle, writable, 
     const r = (rect.current = drawItem(ctx, img, shown, { x: 0, y: 0, w: canvas.width, h: canvas.height }));
     if (board) drawBoard(ctx, board, r);
     const c = selectedCircle !== null ? shown.circles[selectedCircle] : undefined;
-    if (c) { const d = c.r * Math.min(r.fw, r.fh); ctx.setLineDash([6, 4]); ctx.strokeStyle = "#000"; ctx.lineWidth = 1; ctx.strokeRect(r.ox + c.x * r.fw - d, r.oy + c.y * r.fh - d, d * 2, d * 2); ctx.setLineDash([]); }
+    if (c) { const m = Math.min(r.fw, r.fh), dw = c.r * m + 3, dh = (c.kind === "rect" ? c.h ?? c.r : c.r) * m + 3; ctx.setLineDash([6, 4]); ctx.strokeStyle = "#000"; ctx.lineWidth = 1; ctx.strokeRect(r.ox + c.x * r.fw - dw, r.oy + c.y * r.fh - dh, dw * 2, dh * 2); ctx.setLineDash([]); }
   }, [img, shown, selectedCircle, board]);
   const point = (e: React.PointerEvent<HTMLCanvasElement>) => {
     const box = e.currentTarget.getBoundingClientRect(), sx = e.currentTarget.width / box.width, sy = e.currentTarget.height / box.height;
     return { cx: (e.clientX - box.left) * sx, cy: (e.clientY - box.top) * sy };
   };
-  return <canvas ref={ref} width={480} height={360} tabIndex={0} role="img" aria-label={`${label} 미리보기${img ? "" : "(불러오는 중)"}, 원형 강조 ${shown.circles.length}개${shown.view ? `, ${shown.view.zoom}배 확대` : ""}${board ? `, 보드판 ${board.rows.length}줄` : ""}`}
+  return <canvas ref={ref} width={480} height={360} tabIndex={0} role="img" aria-label={`${label} 미리보기${img ? "" : "(불러오는 중)"}, 원형 강조 ${shown.circles.filter((c) => c.kind !== "rect").length}개${shown.circles.some((c) => c.kind === "rect") ? `, 사각형 강조 ${shown.circles.filter((c) => c.kind === "rect").length}개` : ""}${shown.view ? `, ${shown.view.zoom}배 확대` : ""}${board ? `, 보드판 ${board.rows.length}줄` : ""}`}
     style={{ maxWidth: "100%", cursor: "crosshair", touchAction: writable ? "none" : "auto" }}
     onKeyDown={onKey}
     onPointerDown={(e) => {

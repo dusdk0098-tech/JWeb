@@ -108,6 +108,27 @@ test("photo board: originals retained, display set once, scene limited to own ph
     html = (await ed.agent.get(`${path}/print`)).text;
     assert.match(html, /<p>빈 칸<\/p>/); // an odd last slot is marked, not stretched
     assert.match(html, /1\/1쪽/);
+    // 5단계 사진대지 양식: photos per page, 머리글 4칸, 내용 칸 with the file name when the caption is empty.
+    const sheetSave = (version: number, sheet: object, items = [full.items[0], full.items[1], { ...full.items[2], included: true }]) =>
+      send(ed, "put", path, { version, title: "작업 전후", body: { siteName: "합성 현장", work: "정리", footer: "", sheet }, scene: { ...full, items } });
+    const header = { project: "<합성> 신축공사", trade: "철근콘크리트", location: "지하 1층", date: "2026.11.11" };
+    for (const bad of [{ perPage: 5, captions: true, fileNames: false, header }, { perPage: 4, captions: true, fileNames: false, header: { ...header, extra: "x" } }, { perPage: 4, captions: true, header }])
+      assert.equal((await sheetSave(r.body.version, bad)).status, 400, JSON.stringify(bad));
+    r = await sheetSave(r.body.version, { perPage: 4, captions: true, fileNames: true, header });
+    assert.equal(r.status, 200, r.text);
+    html = (await vw.agent.get(`${path}/print`)).text;
+    assert.equal((html.match(/class="photo-page"/g) ?? []).length, 1); // 3 photos, 4 per page
+    assert.match(html, /<table class="photo-head"><tbody><tr><th>공사명<\/th><td>&lt;합성&gt; 신축공사<\/td><th>공종명<\/th><td>철근콘크리트<\/td><\/tr><tr><th>공사 위치<\/th><td>지하 1층<\/td><th>공사 일자<\/th><td>2026\.11\.11<\/td><\/tr>/);
+    assert.match(html, /<div class="photo-grid cols-2 rows-2">/);
+    assert.match(html, /<figcaption>두번째\.png<\/figcaption>/); // empty caption → file name
+    assert.match(html, /<figcaption>제외됨<\/figcaption>/); // a written caption stays
+    assert.doesNotMatch(html, /빈 칸|설명 미입력/);
+    r = await sheetSave(r.body.version, { perPage: 1, captions: false, fileNames: false, header: { project: "", trade: "", location: "", date: "" } });
+    html = (await vw.agent.get(`${path}/print`)).text;
+    assert.equal((html.match(/class="photo-page"/g) ?? []).length, 3); // one per page
+    assert.match(html, /<div class="photo-grid cols-1 rows-1 no-captions">/);
+    assert.doesNotMatch(html, /photo-head|figcaption/); // empty 머리글 is not printed, 내용 칸 off
+    assert.match(html, /3\/3쪽/);
     assert.throws(() => db.prepare("UPDATE photo_board_photos SET bytes=x'00'").run());
     assert.throws(() => db.prepare("DELETE FROM photo_board_photos").run());
     assert.equal((await ed.agent.get(`/api/sites/${other}/photo-boards/${b.id}`)).status, 403); // not a member of that site

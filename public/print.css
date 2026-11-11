@@ -89,6 +89,47 @@ td {
   max-height: 105mm;
   margin: 0 auto;
 }
+/* 사진대지 양식 (쪽당 1·2·3·4·6·9장): rows share the page height left under the title and the 머리글 표 */
+.photo-head {
+  margin: 0 0 4mm;
+  font-size: 10pt;
+}
+.photo-head th {
+  width: 22mm;
+  background: #eee;
+}
+.photo-grid {
+  display: grid;
+  gap: 3mm;
+}
+.photo-grid.cols-2 {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+.photo-grid.cols-3 {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+.photo-grid .photo-slot {
+  margin: 0;
+  font-size: 9pt;
+}
+.photo-grid.rows-1 .photo-slot svg {
+  max-height: 195mm;
+}
+.photo-grid.rows-2 .photo-slot svg {
+  max-height: 93mm;
+}
+.photo-grid.rows-3 .photo-slot svg {
+  max-height: 58mm;
+}
+.photo-grid.no-captions.rows-1 .photo-slot svg {
+  max-height: 205mm;
+}
+.photo-grid.no-captions.rows-2 .photo-slot svg {
+  max-height: 100mm;
+}
+.photo-grid.no-captions.rows-3 .photo-slot svg {
+  max-height: 65mm;
+}
 .form-page {
   break-after: page;
 }

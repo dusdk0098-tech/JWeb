@@ -33,7 +33,11 @@ export function migratePhotoBoards(db: Db) {
 }
 export const PHOTO_BOARD_MAX_PHOTOS = 40;
 const text = (max: number) => z.string().trim().max(max);
-const circle = z.object({ x: z.number().min(0).max(1), y: z.number().min(0).max(1), r: z.number().min(0.01).max(0.5), color: z.enum(["red", "yellow", "blue"]) }).strict();
+// kind/h/dashed (2단계 도형) are optional so scenes saved before them stay valid.
+const circle = z.object({
+  x: z.number().min(0).max(1), y: z.number().min(0).max(1), r: z.number().min(0.01).max(0.5), color: z.enum(["red", "yellow", "blue"]),
+  kind: z.literal("rect").optional(), h: z.number().min(0.01).max(0.5).optional(), dashed: z.literal(true).optional(),
+}).strict();
 // 보드판 (docs/PHOTO_BOARD_FRANVIEW_ANALYSIS.md): optional; older saved scenes stay valid.
 const boardPanel = z.object({
   rows: z.array(z.object({ label: text(20), value: text(200) }).strict()).min(1).max(BOARD_MAX_ROWS),
@@ -52,7 +56,17 @@ export const photoScene = z.object({
     board: boardPanel.nullable().optional(), // undefined = the common 보드판, null = none on this photo
   }).strict()).max(PHOTO_BOARD_MAX_PHOTOS),
 }).strict();
-const boardBody = z.object({ siteName: text(200), work: text(500), footer: text(500) }).strict();
+// 5단계 사진대지 양식: photos per page, 내용 칸, 머리글 4칸. Optional — a board saved without it prints the original
+// two-per-page sheet unchanged.
+const sheet = z.object({
+  perPage: z.union([z.literal(1), z.literal(2), z.literal(3), z.literal(4), z.literal(6), z.literal(9)]),
+  captions: z.boolean(), fileNames: z.boolean(),
+  header: z.object({ project: text(200), trade: text(200), location: text(200), date: text(100) }).strict(),
+}).strict();
+const boardBody = z.object({ siteName: text(200), work: text(500), footer: text(500), sheet: sheet.optional() }).strict();
+type Sheet = z.infer<typeof sheet>;
+// Columns × rows of one page for each 쪽당 장수.
+const SHEET_GRID: Record<Sheet["perPage"], [number, number]> = { 1: [1, 1], 2: [1, 2], 3: [1, 3], 4: [2, 2], 6: [2, 3], 9: [3, 3] };
 const boardCreate = z.object({ title: text(200).min(1, "제목을 입력하세요.") }).strict();
 const boardSave = z.object({ version: z.number().int().min(1), title: text(200).min(1, "제목을 입력하세요."), body: boardBody, scene: photoScene }).strict();
 type BoardRow = { id: string; site_id: string; title: string; body: string; scene: string; version: number; updated_at: string };
@@ -168,17 +182,24 @@ export function registerPhotoBoards(app: Express, db: Db, { access, mutate }: Si
   // 2단계 사진대지: included photos two per page in scene order, from the saved scene. Each photo is an SVG over the display JPEG so
   // rotation, zoom view and circles print exactly as the editor draws them; an odd last slot is marked empty, not stretched.
   app.get(base + "/:id/print", (req, res) => {
-    const row = board(req), v = boardView(db, row), body = v.body as { siteName: string; work: string; footer: string }, photos = new Map(v.photos.map((p) => [p.id, p]));
+    const row = board(req), v = boardView(db, row), body = v.body as { siteName: string; work: string; footer: string; sheet?: Sheet }, photos = new Map(v.photos.map((p) => [p.id, p]));
     const src = (id: string) => `/api/sites/${row.site_id}/photo-boards/${row.id}/photos/${id}/display`;
     const slot = (item: z.infer<typeof photoScene>["items"][number]) => {
-      const p = photos.get(item.photoId), caption = `<figcaption>${e(item.caption || "설명 미입력")}</figcaption>`;
+      const p = photos.get(item.photoId), s = body.sheet,
+        caption = s && !s.captions ? "" : `<figcaption>${e(item.caption || (s?.fileNames && p ? p.filename : "설명 미입력"))}</figcaption>`;
       if (!p?.hasDisplay || !p.width || !p.height) return `<figure class="photo-slot"><p>표시본 없음 · ${e(p?.filename ?? "")}</p>${caption}</figure>`;
       return `<figure class="photo-slot">${photoSvg({ href: src(p.id), width: p.width, height: p.height, rotation: item.rotation, circles: item.circles, view: item.view, board: item.board === null ? undefined : item.board ?? v.scene.board, label: `${e(item.caption || p.filename)} 사진`, clipId: `v-${p.id}` })}${caption}</figure>`;
     };
-    const items = v.scene.items.filter((i) => i.included), pages: (typeof items)[] = [];
-    for (let i = 0; i < items.length; i += 2) pages.push(items.slice(i, i + 2));
+    const items = v.scene.items.filter((i) => i.included), pages: (typeof items)[] = [], per = body.sheet?.perPage ?? 2;
+    for (let i = 0; i < items.length; i += per) pages.push(items.slice(i, i + per));
     const sub = [body.siteName, body.work].filter(Boolean).join(" · ");
-    const html = pages.map((p, i) => `<section class="photo-page"><h1>${e(row.title)}</h1><p>${sub ? e(sub) + " · " : ""}${i + 1}/${pages.length}쪽</p>${p.map(slot).join("")}${
+    const sheetPage = (p: typeof items, i: number, s: Sheet) => {
+      const [cols, rows] = SHEET_GRID[s.perPage], h = s.header;
+      const head = Object.values(h).some(Boolean)
+        ? `<table class="photo-head"><tbody><tr><th>공사명</th><td>${e(h.project)}</td><th>공종명</th><td>${e(h.trade)}</td></tr><tr><th>공사 위치</th><td>${e(h.location)}</td><th>공사 일자</th><td>${e(h.date)}</td></tr></tbody></table>` : "";
+      return `<section class="photo-page"><h1>${e(row.title)}</h1><p>${sub ? e(sub) + " · " : ""}${i + 1}/${pages.length}쪽</p>${head}<div class="photo-grid cols-${cols} rows-${rows}${s.captions ? "" : " no-captions"}">${p.map(slot).join("")}</div>${body.footer ? `<footer>${e(body.footer)}</footer>` : ""}</section>`;
+    };
+    const html = body.sheet ? pages.map((p, i) => sheetPage(p, i, body.sheet!)).join("") : pages.map((p, i) => `<section class="photo-page"><h1>${e(row.title)}</h1><p>${sub ? e(sub) + " · " : ""}${i + 1}/${pages.length}쪽</p>${p.map(slot).join("")}${
       p.length === 1 ? '<figure class="photo-slot"><p>빈 칸</p></figure>' : ""}${body.footer ? `<footer>${e(body.footer)}</footer>` : ""}</section>`).join("");
     res.type("html").send(`<!doctype html><html lang="ko"><head><meta charset="utf-8"><title>${e(row.title)} · 사진대지</title><link rel="stylesheet" href="/print.css"></head><body><aside>브라우저 인쇄 / PDF 저장 · 저장된 사진 보드 v${row.version} 기준 · 포함 ${items.length}장</aside><main>${html || "<p>포함된 사진이 없습니다.</p>"}</main></body></html>`);
   });
