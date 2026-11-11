@@ -3,6 +3,12 @@ let csrf = "";
 export function setCsrf(value: string) {
   csrf = value;
 }
+// Pages without login (/join, /signup) fetch a CSRF token first, once per page load: two /session calls at once (React
+// runs a mount effect twice in StrictMode) each start a session, and one token then fails against the other's cookie.
+let pageCsrf: Promise<void> | null = null;
+export function loadCsrf() {
+  return (pageCsrf ??= api<{ csrf: string }>("/session").then((s) => setCsrf(s.csrf), (e) => { pageCsrf = null; throw e; }));
+}
 // Sessions last 8 hours and die on a server restart or a password change elsewhere. A 401 off the login path, or the
 // 403 the CSRF check gives once the cookie is gone, then means we are signed out — unless the server still knows us
 // (a wrong current password also answers 401, a real permission error 403), so ask /session once before sending the

@@ -30,10 +30,14 @@ test("교육 QR 참여: the author shows a link, a participant confirms without 
   expect(link).toMatch(/\/join#t=[A-Za-z0-9_-]{43}$/);
   await expect(page.getByRole("img", { name: "참여 링크 QR 코드" })).toBeVisible();
   const phone = await (await browser.newContext()).newPage(); // separate browser, not logged in
+  let sessions = 0;
+  phone.on("request", (r) => { if (new URL(r.url()).pathname === "/api/session") sessions++; });
   await phone.goto(link);
   await expect(phone.getByRole("heading", { name: "교육 참여 확인", exact: true })).toBeVisible();
   await expect(phone.getByText(/참여 링크 교육 · .* · 합성 교육장/)).toBeVisible();
   await expect(phone.getByText(/교육 참여 확인 서명 동의/)).toBeVisible();
+  await expect(phone.getByRole("alert")).toHaveCount(0); // one /session per page load: no stale-token error on open
+  expect(sessions).toBe(1);
   await phone.getByLabel("이름").fill("박 교육");
   await phone.getByLabel("생년월일").fill("1988-03-05");
   await phone.getByRole("button", { name: "동의하지 않고 참여만 기록" }).click();

@@ -21,8 +21,11 @@ test("worker joins a site by QR link, edits their info, signs in by name and bir
   expect(url).toMatch(/\/signup#t=[A-Za-z0-9_-]{43}$/);
 
   const ctx = await browser.newContext(), w = await ctx.newPage();
+  let sessions = 0;
+  w.on("request", (r) => { if (new URL(r.url()).pathname === "/api/session") sessions++; });
   await w.goto(url);
   await expect(w.getByRole("heading", { name: siteName })).toBeVisible();
+  expect(sessions).toBe(1); // one /session per page load, so its token matches the cookie
   await w.getByLabel("이름", { exact: true }).fill("합성 근로자");
   await w.getByLabel("생년월일 6자리").fill("850315");
   await w.getByLabel("소속(업체명)").fill("합성건설");
