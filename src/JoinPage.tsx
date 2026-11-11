@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { api, setCsrf } from "./api";
+import { api, loadCsrf } from "./api";
 import { EDUCATION_SIGNATURE_CONSENT, TBM_SIGNATURE_CONSENT } from "../server/consent-text";
 // MOB-01: no-login participation page for a TBM or a 교육일지 (the invitation decides which). The token stays in the URL fragment, so it never reaches server logs.
 // 2단계: the worker reads the consent text and either signs (grant) or records participation only (deny).
@@ -10,7 +10,7 @@ export function JoinPage() {
   const pad = useRef<HTMLCanvasElement>(null), drawing = useRef(false);
   const education = info?.kind === "education", consent = education ? EDUCATION_SIGNATURE_CONSENT : TBM_SIGNATURE_CONSENT;
   useEffect(() => {
-    api<{ csrf: string }>("/session").then((s) => { setCsrf(s.csrf); return api<NonNullable<typeof info>>("/join/info", "POST", { token }); })
+    loadCsrf().then(() => api<NonNullable<typeof info>>("/join/info", "POST", { token }))
       .then(setInfo).catch((e) => setError(e.message));
   }, [token]);
   const point = (e: React.PointerEvent<HTMLCanvasElement>) => {

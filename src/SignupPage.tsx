@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { api, setCsrf } from "./api";
+import { api, loadCsrf, setCsrf } from "./api";
 import { SIGNUP_CONSENT } from "../server/consent-text";
 // 근로자 QR 가입 (server/site-signup.ts): no login. The token stays in the URL fragment, so it never reaches server logs.
 export function SignupPage() {
@@ -7,7 +7,7 @@ export function SignupPage() {
   const [info, setInfo] = useState<{ siteName: string; expiresAt: string } | null>(null), [agreed, setAgreed] = useState<string[]>([]),
     [error, setError] = useState(""), [busy, setBusy] = useState(false);
   useEffect(() => {
-    api<{ csrf: string }>("/session").then((s) => { setCsrf(s.csrf); return api<NonNullable<typeof info>>("/site-join/info", "POST", { token }); })
+    loadCsrf().then(() => api<NonNullable<typeof info>>("/site-join/info", "POST", { token }))
       .then(setInfo).catch((e) => setError((e as Error).message));
   }, [token]);
   const ids = SIGNUP_CONSENT.items.map((i) => i.id), all = ids.every((id) => agreed.includes(id));
