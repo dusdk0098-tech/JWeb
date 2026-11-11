@@ -41,7 +41,7 @@ const circle = z.object({
 // 보드판 (docs/PHOTO_BOARD_FRANVIEW_ANALYSIS.md): optional; older saved scenes stay valid.
 const boardPanel = z.object({
   rows: z.array(z.object({ label: text(20), value: text(200) }).strict()).min(1).max(BOARD_MAX_ROWS),
-  corner: z.enum(["tl", "tr", "bl", "br"]), size: z.number().min(0.2).max(1), labelShare: z.number().min(0.15).max(0.5).optional(),
+  corner: z.enum(["tl", "tr", "bl", "br"]), size: z.number().min(0.2).max(1), labelShare: z.number().min(0.05).max(0.8).optional(), // setBoardColumns: 항목 5~40%, 내용 ≥10%
   theme: z.enum(Object.keys(BOARD_THEMES) as [keyof typeof BOARD_THEMES, ...(keyof typeof BOARD_THEMES)[]]), opacity: z.number().min(0).max(1),
   bold: z.boolean(), labelAlign: z.enum(["left", "center"]), valueAlign: z.enum(["left", "center"]),
 }).strict();
