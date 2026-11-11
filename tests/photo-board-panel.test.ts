@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { boardLayout, boardSvg, boardTexts, defaultBoard, photoSvg, wrapText, type BoardPanel } from "../server/photo-view.js";
+import { boardColumns, boardLayout, boardSvg, boardTexts, defaultBoard, photoSvg, setBoardColumns, wrapText, type BoardPanel } from "../server/photo-view.js";
 import { photoScene } from "../server/photo-board.js";
 import { boardFor, type Scene, type SceneItem } from "../src/photo-scene.js";
 // 보드판 (docs/PHOTO_BOARD_FRANVIEW_ANALYSIS.md): one layout for the editor, PNG and print; wrapping, corners, shrinking, escaping.
@@ -21,6 +21,20 @@ test("보드판 layout: wrap by estimated width, corners, shrink to fit, text ru
   assert.ok(tall.h <= 190.01 && tall.w < 800, "shrunk as a whole to 95% of the photo height");
   assert.equal(boardLayout({ ...b, labelShare: 0.2 }, rect).labelW, 80, "the content column widens");
   assert.equal(boardLayout({ ...b, labelShare: undefined }, rect).labelW, 120, "boards saved before this default to 30%");
+  // 항목 칸·내용 칸 너비 each on its own (fractions of the photo width).
+  const d = defaultBoard(), near = (x: number, y: number) => assert.ok(Math.abs(x - y) < 0.002, `${x} ≈ ${y}`);
+  near(boardColumns(d).label, 0.15); near(boardColumns(d).value, 0.45);
+  const wider = setBoardColumns(d, { value: 0.7 });
+  near(boardColumns(wider).label, 0.15); near(boardColumns(wider).value, 0.7);
+  assert.equal(wider.size, 0.85);
+  assert.ok(Math.abs(boardLayout(wider, rect).labelW - 120) < 1); // 15% of the 800px photo, as before the content column grew
+  const label = setBoardColumns(wider, { label: 0.3 });
+  near(boardColumns(label).label, 0.3); near(boardColumns(label).value, 0.7); // the content column stays
+  assert.equal(setBoardColumns(label, { label: 0.4 }).size, 1, "the table never passes the photo width: content gives way");
+  near(boardColumns(setBoardColumns(d, { label: 0.9 })).label, 0.4);
+  assert.equal(setBoardColumns(d, { label: 0.05, value: 0.01 }).size, 0.2, "the table keeps at least 20%");
+  for (const x of [wider, label, setBoardColumns(d, { label: 0.4, value: 0.1 }), setBoardColumns(d, { label: 0.05, value: 0.95 })])
+    assert.equal(photoScene.safeParse({ layoutVersion: 1, items: [], board: x }).success, true, JSON.stringify(x));
   const runs = boardTexts(b, bl);
   assert.deepEqual(runs.map((r) => r.text), ["공사명", "합성 공사", "일자", "2026.11.05"]);
   assert.equal(runs[0].anchor, "middle"); // labels centered by default

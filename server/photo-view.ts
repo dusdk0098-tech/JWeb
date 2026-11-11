@@ -43,6 +43,14 @@ export const defaultBoard = (): BoardPanel => ({
   rows: [{ label: "공사명", value: "" }, { label: "공종", value: "" }, { label: "위치", value: "" }, { label: "일자", value: "" }],
   corner: "bl", size: 0.6, labelShare: 0.25, theme: "white", opacity: 0.85, bold: false, labelAlign: "center", valueAlign: "left",
 });
+// 항목 칸·내용 칸 너비 (fractions of the photo width), each set on its own. Stored as size (both columns) and labelShare, so
+// boards saved before and the print layout stay as they are. Limits: 항목 5~40%, 내용 10% up to what is left, table 20~100%.
+export const boardColumns = (b: BoardPanel) => ({ label: b.size * (b.labelShare ?? 0.3), value: b.size * (1 - (b.labelShare ?? 0.3)) });
+export function setBoardColumns(b: BoardPanel, p: { label?: number; value?: number }): BoardPanel {
+  const c = boardColumns(b), label = Math.min(0.4, Math.max(0.05, p.label ?? c.label));
+  const value = Math.min(1 - label, Math.max(0.1, 0.2 - label, p.value ?? c.value)), size = Math.round((label + value) * 1000) / 1000;
+  return { ...b, size, labelShare: Math.round((label / size) * 1000) / 1000 };
+}
 const em = (ch: string) => (ch.codePointAt(0)! >= 0x2e80 ? 1 : 0.56);
 // Greedy wrap by estimated width, breaking at the last space when the line has one; at most `max` lines, the last one ends
 // with … when text is left over. Empty text keeps one line.

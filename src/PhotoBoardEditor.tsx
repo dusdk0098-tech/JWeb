@@ -5,7 +5,7 @@ import { makePhotoDisplay } from "./photo-display";
 import { boardFor, circleAt, drawBoard, drawItem, moveCircle, moveItem, photoInfoTsv, resizeCircle, rotateItem, styleShape, widenRect, type Circle, type Scene, type SceneItem } from "./photo-scene";
 import { boardPhrases, forgetPhrase, rememberPhrases, todayText } from "./boardPhrases";
 import { zipStore } from "./zip-store";
-import { BOARD_MAX_ROWS, MAX_ZOOM, defaultBoard, panView, zoomView, type BoardPanel } from "../server/photo-view";
+import { BOARD_MAX_ROWS, MAX_ZOOM, boardColumns, defaultBoard, panView, setBoardColumns, zoomView, type BoardPanel } from "../server/photo-view";
 import { ActionBar, Notice, PageHeader, Section, StatusChip } from "./ui";
 export type PhotoBoard = {
   id: string; title: string; version: number; updatedAt: string; scene: Scene;
@@ -246,7 +246,7 @@ const pct = (v: number) => `${Math.round(v * 100)}%`, r2 = (v: number) => Math.r
 function BoardFields({ name, value: b, onChange }: { name: string; value: BoardPanel; onChange: (b: BoardPanel) => void }) {
   const set = (p: Partial<BoardPanel>) => onChange({ ...b, ...p });
   const setRow = (i: number, p: Partial<BoardPanel["rows"][number]>) => set({ rows: b.rows.map((r, j) => (j === i ? { ...r, ...p } : r)) });
-  const valueShare = 1 - (b.labelShare ?? 0.3);
+  const cols = boardColumns(b);
   return <div className="board-fields">
     <table className="board-rows"><thead><tr><th scope="col">항목</th><th scope="col">내용</th><th scope="col"><span className="sr-only">줄 삭제</span></th></tr></thead><tbody>
       {b.rows.map((r, i) => <tr key={i}>
@@ -262,7 +262,8 @@ function BoardFields({ name, value: b, onChange }: { name: string; value: BoardP
       </div></div>
       <label><span className="board-control-head">색</span><select aria-label={`${name} 색`} value={b.theme} onChange={(e) => set({ theme: e.target.value as BoardPanel["theme"] })}><option value="white">흰 보드</option><option value="green">녹색 칠판</option><option value="black">검은 보드</option></select></label>
       <label><span className="board-control-head">표 크기<span>{pct(b.size)}</span></span><input type="range" aria-label={`${name} 표 크기`} min={0.2} max={1} step={0.05} value={b.size} onChange={(e) => set({ size: Number(e.target.value) })} /></label>
-      <label><span className="board-control-head">내용 칸 너비<span>{pct(valueShare)}</span></span><input type="range" aria-label={`${name} 내용 칸 너비`} min={0.5} max={0.85} step={0.05} value={r2(valueShare)} onChange={(e) => set({ labelShare: r2(1 - Number(e.target.value)) })} /></label>
+      <label><span className="board-control-head">항목 칸 너비<span>{pct(cols.label)}</span></span><input type="range" aria-label={`${name} 항목 칸 너비`} min={0.05} max={0.4} step={0.01} value={r2(cols.label)} onChange={(e) => onChange(setBoardColumns(b, { label: Number(e.target.value) }))} /></label>
+      <label><span className="board-control-head">내용 칸 너비<span>{pct(cols.value)}</span></span><input type="range" aria-label={`${name} 내용 칸 너비`} min={0.1} max={0.95} step={0.01} value={r2(cols.value)} onChange={(e) => onChange(setBoardColumns(b, { value: Number(e.target.value) }))} /></label>
       <label><span className="board-control-head">바탕 투명도<span>{pct(1 - b.opacity)}</span></span><input type="range" aria-label={`${name} 바탕 투명도`} min={0} max={1} step={0.05} value={r2(1 - b.opacity)} onChange={(e) => set({ opacity: r2(1 - Number(e.target.value)) })} /></label>
       <label><span className="board-control-head">항목 정렬</span><select aria-label={`${name} 항목 정렬`} value={b.labelAlign} onChange={(e) => set({ labelAlign: e.target.value as "left" })}><option value="center">가운데</option><option value="left">왼쪽</option></select></label>
       <label><span className="board-control-head">내용 정렬</span><select aria-label={`${name} 내용 정렬`} value={b.valueAlign} onChange={(e) => set({ valueAlign: e.target.value as "left" })}><option value="left">왼쪽</option><option value="center">가운데</option></select></label>
