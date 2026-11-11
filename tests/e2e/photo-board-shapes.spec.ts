@@ -1,5 +1,6 @@
 import { test, expect } from "@playwright/test";
 import { randomUUID } from "node:crypto";
+import { readFileSync } from "node:fs";
 test("사진 보드 도형·문구: rectangle and dashed highlight print as drawn; saved 보드판 내용 comes back as a suggestion with today's date", async ({ page }) => {
   await page.goto("/");
   await page.getByLabel("이메일 또는 아이디", { exact: true }).fill("test@example.test");
@@ -41,9 +42,35 @@ test("사진 보드 도형·문구: rectangle and dashed highlight print as draw
   expect(saved.scene.items[0].circles).toMatchObject([{ r: 0.1, color: "red", kind: "rect", h: 0.08, dashed: true }]); // widened once: height stays at the first size
   const print = await (await page.request.get(`/api/sites/${site.id}/photo-boards/${board.id}/print`)).text();
   expect(print).toMatch(/<rect x="[\d.]+" y="[\d.]+" width="[\d.]+" height="[\d.]+" fill="none" stroke="#e0312b" stroke-width="[\d.]+" stroke-dasharray="[\d. ]+"\/>/);
+  // 4단계: one JPEG per included photo with the board and highlight drawn in, in a ZIP.
+  const [download] = await Promise.all([page.waitForEvent("download"), page.getByRole("button", { name: "사진 묶음 ZIP 저장" }).click()]);
+  expect(download.suggestedFilename()).toBe("도형 확인 사진.zip");
+  await expect(page.getByRole("status")).toHaveText("사진 1장을 ZIP으로 만들었습니다. 원본은 그대로입니다.");
+  const zip = readFileSync((await download.path())!), end = zip.length - 22;
+  expect(zip.readUInt32LE(end)).toBe(0x06054b50);
+  expect(zip.readUInt16LE(end + 10)).toBe(1);
+  expect(zip.subarray(30, 30 + zip.readUInt16LE(26)).toString("utf8")).toBe("001_현장.jpg");
+  const jpegStart = 30 + zip.readUInt16LE(26);
+  expect([...zip.subarray(jpegStart, jpegStart + 3)]).toEqual([0xff, 0xd8, 0xff]);
+  expect(zip.readUInt32LE(18)).toBeGreaterThan(1000); // a real picture, not an empty file
+  // 5단계: 사진대지 양식 — 4 per page with a 머리글 표, saved with the board and used by the print.
+  await page.getByLabel("사진대지 양식 고르기").check();
+  await page.getByLabel("쪽당 장수").selectOption("4");
+  await page.getByLabel("머리글 공사명").fill("합성 신축공사");
+  await page.getByLabel("설명이 비면 파일명 넣기").check();
+  await page.getByRole("button", { name: "사진 보드 저장" }).click();
+  await expect(page.getByRole("status")).toHaveText("저장했습니다.");
+  const sheetPage = await page.context().newPage();
+  await sheetPage.setViewportSize({ width: 794, height: 1123 }); // A4 at 96dpi
+  await sheetPage.goto(`/api/sites/${site.id}/photo-boards/${board.id}/print`);
+  await expect(sheetPage.locator("table.photo-head")).toContainText("합성 신축공사");
+  await expect(sheetPage.locator(".photo-grid.cols-2.rows-2 .photo-slot")).toHaveCount(1);
+  await expect(sheetPage.locator("figcaption")).toHaveText("현장.png");
+  expect(await sheetPage.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1)).toBe(true);
+  await sheetPage.close();
   // The saved text (not the date) is now a suggestion on this device, and can be removed.
   await expect(page.locator('datalist#board-phrases option[value="합성 신축공사"]')).toHaveCount(1);
-  await expect(page.locator("datalist#board-phrases option")).toHaveCount(2);
+  await expect(page.locator("datalist#board-phrases option")).toHaveCount(2); // today + the one text (보드판 and 머리글 hold the same words)
   await page.getByText("자주 쓰는 문구 1개 (이 기기에만 보관)").click();
   await page.getByRole("button", { name: "문구 지우기: 합성 신축공사" }).click();
   await expect(page.locator("datalist#board-phrases option")).toHaveCount(1);

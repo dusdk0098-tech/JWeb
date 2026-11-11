@@ -4,10 +4,12 @@ import { useDraftGuard } from "./useDraftGuard";
 import { makePhotoDisplay } from "./photo-display";
 import { boardFor, circleAt, drawBoard, drawItem, moveCircle, moveItem, photoInfoTsv, resizeCircle, rotateItem, styleShape, widenRect, type Circle, type Scene, type SceneItem } from "./photo-scene";
 import { boardPhrases, forgetPhrase, rememberPhrases, todayText } from "./boardPhrases";
+import { zipStore } from "./zip-store";
 import { BOARD_MAX_ROWS, MAX_ZOOM, defaultBoard, panView, zoomView, type BoardPanel } from "../server/photo-view";
 import { ActionBar, Notice, PageHeader, Section, StatusChip } from "./ui";
 export type PhotoBoard = {
-  id: string; title: string; version: number; updatedAt: string; body: { siteName: string; work: string; footer: string }; scene: Scene;
+  id: string; title: string; version: number; updatedAt: string; scene: Scene;
+  body: { siteName: string; work: string; footer: string; sheet?: { perPage: 1 | 2 | 3 | 4 | 6 | 9; captions: boolean; fileNames: boolean; header: { project: string; trade: string; location: string; date: string } } };
   photos: { id: string; filename: string; format: string; size: number; width: number | null; height: number | null; hasDisplay: boolean; createdAt: string }[];
 };
 type Draft = { title: string; body: PhotoBoard["body"]; scene: Scene };
@@ -63,7 +65,7 @@ export function PhotoBoardEditor({ base, initial, writable, onClose, onDirtyChan
     try {
       const body = { version: board.version, ...draft }, next = await api<PhotoBoard>(path, "PUT", body, guard.key(path, body));
       setBoard(next); saved.current = JSON.stringify(draftOf(next)); setDraft(draftOf(next)); setNotice("저장했습니다.");
-      rememberPhrases(siteId, [next.scene.board, ...next.scene.items.map((i) => i.board)].flatMap((b) => b?.rows.map((r) => r.value) ?? []));
+      rememberPhrases(siteId, [...[next.scene.board, ...next.scene.items.map((i) => i.board)].flatMap((b) => b?.rows.map((r) => r.value) ?? []), ...Object.values(next.body.sheet?.header ?? {})]);
       setPhrases(boardPhrases(siteId));
     } catch (e) { setError((e as Error).message + " 입력은 유지됩니다."); } finally { setBusy(false); }
   }
@@ -96,17 +98,46 @@ export function PhotoBoardEditor({ base, initial, writable, onClose, onDirtyChan
       setNotice(`PNG ${shown.length}장 보드를 만들었습니다.`);
     }, "image/png");
   }
+  // 4단계: each included photo as its own JPEG with rotation, zoom, highlights and 보드판 drawn in (the stored originals stay
+  // untouched), all in one ZIP. Pixel size = the shown part of the display copy.
+  async function exportJpegZip() {
+    const shown = draft.scene.items.filter((i) => i.included && images[i.photoId]);
+    if (!shown.length) { setError("포함된 사진이 없어 사진 묶음을 만들 수 없습니다."); return; }
+    setBusy(true); setError(""); setNotice("");
+    try {
+      const files: { name: string; data: Uint8Array }[] = [];
+      for (const [n, item] of shown.entries()) {
+        const img = images[item.photoId], turned = item.rotation % 180 !== 0, zoom = item.view?.zoom ?? 1,
+          canvas = document.createElement("canvas");
+        canvas.width = Math.round((turned ? img.height : img.width) / zoom); canvas.height = Math.round((turned ? img.width : img.height) / zoom);
+        const ctx = canvas.getContext("2d")!, b = boardFor(draft.scene, item);
+        ctx.fillStyle = "#fff"; ctx.fillRect(0, 0, canvas.width, canvas.height);
+        const r = drawItem(ctx, img, item, { x: 0, y: 0, w: canvas.width, h: canvas.height });
+        if (b) drawBoard(ctx, b, r);
+        const blob = await new Promise<Blob | null>((done) => canvas.toBlob(done, "image/jpeg", 0.92));
+        if (!blob) throw new Error("사진을 만들지 못했습니다.");
+        const original = board.photos.find((p) => p.id === item.photoId)?.filename ?? "사진";
+        files.push({ name: `${String(n + 1).padStart(3, "0")}_${original.replace(/\.[^.]+$/, "").replace(/[\\/:*?"<>|]/g, "_")}.jpg`, data: new Uint8Array(await blob.arrayBuffer()) });
+      }
+      const a = document.createElement("a"); a.href = URL.createObjectURL(new Blob([zipStore(files)], { type: "application/zip" }));
+      a.download = `${draft.title || "사진 보드"} 사진.zip`; a.click(); URL.revokeObjectURL(a.href);
+      setNotice(`사진 ${files.length}장을 ZIP으로 만들었습니다. 원본은 그대로입니다.`);
+    } catch (e) { setError((e as Error).message + " 편집 내용은 그대로입니다."); } finally { setBusy(false); }
+  }
+  const sheet = draft.body.sheet, setSheet = (next: NonNullable<PhotoBoard["body"]["sheet"]>) => change({ ...draft, body: { ...draft.body, sheet: next } });
   const placed = new Set(draft.scene.items.map((i) => i.photoId)), unplaced = board.photos.filter((p) => !placed.has(p.id));
   const sample = draft.scene.items.find((i) => i.included && images[i.photoId] && i.board === undefined);
   return <section className="panel photo-editor">
     <PageHeader back="사진 보드 목록으로" backDisabled={busy} onBack={() => { if (guard.canLeave()) onClose(); }} title={draft.title || "사진 보드"}
       status={dirty ? <StatusChip tone="pending">저장 안 됨</StatusChip> : <StatusChip tone="done">저장됨</StatusChip>}>
       <button className="secondary" disabled={busy} onClick={exportPng}>PNG 저장</button>
+      <button className="secondary" disabled={busy} onClick={() => void exportJpegZip()}>사진 묶음 ZIP 저장</button>
       <button className="secondary" disabled={busy || !draft.scene.items.length} onClick={exportTsv}>사진 정보표 TSV 저장</button>
       <a className="button secondary" href={`/api${path}/print`} target="_blank" rel="noreferrer">사진대지 인쇄 / PDF</a>
     </PageHeader>
     {error && <p role="alert">{error}</p>}
     {notice && <p role="status">{notice}</p>}
+    <datalist id="board-phrases"><option value={todayText()}>오늘 날짜</option>{phrases.map((p) => <option key={p} value={p} />)}</datalist>
     <fieldset disabled={!writable || busy}>
       <Section no={1} level={3} title="보드 정보">
       <div className="grid">
@@ -122,9 +153,20 @@ export function PhotoBoardEditor({ base, initial, writable, onClose, onDirtyChan
       <label>폴더 추가(안의 PNG·JPEG만)<input type="file" multiple {...{ webkitdirectory: "" }} onChange={(e) => { if (e.target.files?.length) void upload(Array.from(e.target.files)); e.target.value = ""; }} /></label>
       </div>
       </Section>
-      <Section no={3} level={3} title="보드판">
+      <Section no={3} level={3} title="사진대지 양식">
+      <p className="muted">인쇄할 사진대지의 쪽당 장수와 머리글을 정합니다. 켜지 않으면 지금처럼 한 쪽에 2장씩 인쇄합니다.</p>
+      <label><input type="checkbox" checked={!!sheet} onChange={(e) => { const body = { ...draft.body }; if (e.target.checked) body.sheet = { perPage: 2, captions: true, fileNames: false, header: { project: "", trade: "", location: "", date: "" } }; else delete body.sheet; change({ ...draft, body }); }} />사진대지 양식 고르기</label>
+      {sheet && <div className="board-controls">
+        <label><span className="board-control-head">쪽당 장수</span><select aria-label="쪽당 장수" value={sheet.perPage} onChange={(e) => setSheet({ ...sheet, perPage: Number(e.target.value) as 1 })}>{[1, 2, 3, 4, 6, 9].map((n) => <option key={n} value={n}>{n}장</option>)}</select></label>
+        <label className="board-bold"><input type="checkbox" checked={sheet.captions} onChange={(e) => setSheet({ ...sheet, captions: e.target.checked })} />사진 아래 내용 칸</label>
+        <label className="board-bold"><input type="checkbox" disabled={!sheet.captions} checked={sheet.fileNames} onChange={(e) => setSheet({ ...sheet, fileNames: e.target.checked })} />설명이 비면 파일명 넣기</label>
+        {([["project", "공사명"], ["trade", "공종명"], ["location", "공사 위치"], ["date", "공사 일자"]] as const).map(([k, label]) =>
+          <label key={k}><span className="board-control-head">{label}</span><input aria-label={`머리글 ${label}`} maxLength={k === "date" ? 100 : 200} list="board-phrases" value={sheet.header[k]} onChange={(e) => setSheet({ ...sheet, header: { ...sheet.header, [k]: e.target.value } })} /></label>)}
+        <p className="muted span-2">머리글은 한 번 쓰면 모든 쪽에 찍힙니다. 네 칸이 모두 비면 머리글 표를 찍지 않습니다.</p>
+      </div>}
+      </Section>
+      <Section no={4} level={3} title="보드판">
       <p className="muted">사진 위에 항목·내용 표를 얹습니다. 원본 사진은 그대로 두고 미리보기·PNG·사진대지 인쇄에만 그립니다. 내용 칸을 누르면 오늘 날짜와 이 기기에서 저장했던 문구가 제안으로 뜹니다.</p>
-      <datalist id="board-phrases"><option value={todayText()}>오늘 날짜</option>{phrases.map((p) => <option key={p} value={p} />)}</datalist>
       {phrases.length > 0 && <details className="advanced-tools"><summary>자주 쓰는 문구 {phrases.length}개 (이 기기에만 보관)</summary>
         <ul>{phrases.map((p) => <li key={p}>{p} <button type="button" className="secondary" aria-label={`문구 지우기: ${p}`} onClick={() => { forgetPhrase(siteId, p); setPhrases(boardPhrases(siteId)); }}>지우기</button></li>)}</ul>
       </details>}
