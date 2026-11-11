@@ -1,6 +1,7 @@
 // 사진 보드 scene geometry shared by the editor preview and the PNG output (same drawing for both).
 import { BOARD_THEMES, CIRCLE_COLORS, boardLayout, boardTexts, cropRect, rotateView, type BoardPanel, type View } from "../server/photo-view";
-export type Circle = { x: number; y: number; r: number; color: "red" | "yellow" | "blue" };
+// A highlight: a circle, or with kind "rect" a rectangle (r = half width, h = half height; h absent = square). See SvgCircle.
+export type Circle = { x: number; y: number; r: number; color: "red" | "yellow" | "blue"; kind?: "rect"; h?: number; dashed?: true };
 // board: undefined = the board's common 보드판, null = none on this photo, a panel = this photo's own.
 export type SceneItem = { photoId: string; included: boolean; rotation: 0 | 90 | 180 | 270; caption: string; circles: Circle[]; view?: View; board?: BoardPanel | null };
 export type Scene = { layoutVersion: 1; items: SceneItem[]; board?: BoardPanel };
@@ -22,7 +23,7 @@ export function drawBoard(ctx: CanvasRenderingContext2D, b: BoardPanel, r: { x: 
 const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, Math.round(v * 1000) / 1000));
 // Circles (and the zoom view) are stored in the rotated (displayed) frame; turning the photo 90° clockwise keeps them on the same content.
 export function rotateItem(item: SceneItem): SceneItem {
-  const turned: SceneItem = { ...item, rotation: ((item.rotation + 90) % 360) as SceneItem["rotation"], circles: item.circles.map((c) => ({ ...c, x: clamp(1 - c.y, 0, 1), y: clamp(c.x, 0, 1) })) };
+  const turned: SceneItem = { ...item, rotation: ((item.rotation + 90) % 360) as SceneItem["rotation"], circles: item.circles.map((c) => ({ ...c, x: clamp(1 - c.y, 0, 1), y: clamp(c.x, 0, 1), ...(c.kind === "rect" && c.h !== undefined ? { r: c.h, h: c.r } : {}) })) };
   if (item.view) turned.view = rotateView(item.view);
   return turned;
 }
@@ -30,7 +31,16 @@ export function moveCircle(c: Circle, dx: number, dy: number): Circle {
   return { ...c, x: clamp(c.x + dx, 0, 1), y: clamp(c.y + dy, 0, 1) };
 }
 export function resizeCircle(c: Circle, dr: number): Circle {
-  return { ...c, r: clamp(c.r + dr, 0.01, 0.5) };
+  return { ...c, r: clamp(c.r + dr, 0.01, 0.5), ...(c.h !== undefined ? { h: clamp(c.h + dr, 0.01, 0.5) } : {}) };
+}
+// Shape and line style of a highlight. Defaults (circle, solid) are left out of the stored object, like scenes saved before them.
+export function styleShape(c: Circle, p: { kind?: "circle" | "rect"; dashed?: boolean }): Circle {
+  const rect = (p.kind ?? c.kind ?? "circle") === "rect", dashed = p.dashed ?? !!c.dashed;
+  return { x: c.x, y: c.y, r: c.r, color: c.color, ...(rect ? { kind: "rect" as const, ...(c.kind === "rect" && c.h !== undefined ? { h: c.h } : {}) } : {}), ...(dashed ? { dashed: true as const } : {}) };
+}
+// A rectangle's width alone (its height stays): the first use fixes the height at the current square size.
+export function widenRect(c: Circle, dw: number): Circle {
+  return { ...c, h: c.h ?? c.r, r: clamp(c.r + dw, 0.01, 0.5) };
 }
 export function moveItem(items: SceneItem[], index: number, delta: -1 | 1) {
   const to = index + delta;
@@ -54,11 +64,14 @@ export function drawItem(ctx: CanvasRenderingContext2D, img: CanvasImageSource &
   ctx.rotate((item.rotation * Math.PI) / 180);
   ctx.drawImage(img, (-img.width * scale) / 2, (-img.height * scale) / 2, img.width * scale, img.height * scale);
   ctx.restore();
+  const lw = Math.max(2, Math.min(w, h) * 0.012), m = Math.min(fw, fh);
   for (const c of item.circles) {
     ctx.beginPath();
-    ctx.lineWidth = Math.max(2, Math.min(w, h) * 0.012);
+    ctx.lineWidth = lw;
+    ctx.setLineDash(c.dashed ? [lw * 3, lw * 2] : []);
     ctx.strokeStyle = CIRCLE_COLORS[c.color];
-    ctx.arc(ox + c.x * fw, oy + c.y * fh, c.r * Math.min(fw, fh), 0, Math.PI * 2);
+    if (c.kind === "rect") ctx.rect(ox + c.x * fw - c.r * m, oy + c.y * fh - (c.h ?? c.r) * m, 2 * c.r * m, 2 * (c.h ?? c.r) * m);
+    else ctx.arc(ox + c.x * fw, oy + c.y * fh, c.r * m, 0, Math.PI * 2);
     ctx.stroke();
   }
   ctx.restore();
@@ -68,7 +81,8 @@ export function drawItem(ctx: CanvasRenderingContext2D, img: CanvasImageSource &
 export function circleAt(item: SceneItem, px: number, py: number, fw: number, fh: number) {
   for (let i = item.circles.length - 1; i >= 0; i--) {
     const c = item.circles[i];
-    if (Math.hypot((px - c.x) * fw, (py - c.y) * fh) <= c.r * Math.min(fw, fh)) return i;
+    const dx = Math.abs(px - c.x) * fw, dy = Math.abs(py - c.y) * fh, m = Math.min(fw, fh);
+    if (c.kind === "rect" ? dx <= c.r * m && dy <= (c.h ?? c.r) * m : Math.hypot(dx, dy) <= c.r * m) return i;
   }
   return -1;
 }

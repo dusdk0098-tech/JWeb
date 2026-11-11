@@ -26,7 +26,9 @@ export function zoomView(v: View | undefined, zoom: number): View | undefined {
 }
 // One printed photo: an SVG over the display JPEG with rotation, optional zoom window and circles, clipped to the window so a
 // wider slot never shows the cropped-out part. `label` must already be HTML-escaped; ids/numbers are generated here.
-export type SvgCircle = { x: number; y: number; r: number; color: keyof typeof CIRCLE_COLORS };
+// 2단계 도형: a highlight is a circle unless kind is "rect" (x, y = center, r = half width, h = half height, both as a share
+  // of the photo's short side); dashed draws the outline as a dashed line. Absent fields = the original solid circle.
+export type SvgCircle = { x: number; y: number; r: number; color: keyof typeof CIRCLE_COLORS; kind?: "rect"; h?: number; dashed?: true };
 // 보드판 (docs/PHOTO_BOARD_FRANVIEW_ANALYSIS.md 5절): an item/content table drawn over the shown photo, like a site photo
 // board held up in the picture. One layout for the editor canvas, the PNG and the printed SVG, so all three match. Text width
 // is estimated (CJK 1 em, others 0.56 em) instead of measured, so the server and the browser wrap the same way.
@@ -95,7 +97,13 @@ export function boardSvg(b: BoardPanel, l: BoardLayout) {
 }
 export function photoSvg(o: { href: string; width: number; height: number; rotation: number; circles: SvgCircle[]; view?: View; label: string; clipId: string; board?: BoardPanel }) {
   const n = (x: number) => Math.round(x * 100) / 100, turned = o.rotation % 180 !== 0, iw = turned ? o.height : o.width, ih = turned ? o.width : o.height, c = cropRect(o.view);
-  const circles = o.circles.map((k) => `<circle cx="${n(k.x * iw)}" cy="${n(k.y * ih)}" r="${n(k.r * Math.min(iw, ih))}" fill="none" stroke="${CIRCLE_COLORS[k.color]}" stroke-width="${n(Math.max(2, Math.min(c.w * iw, c.h * ih) * 0.012))}"/>`).join("");
+  const m = Math.min(iw, ih), sw = n(Math.max(2, Math.min(c.w * iw, c.h * ih) * 0.012));
+  const circles = o.circles.map((k) => {
+    const stroke = `fill="none" stroke="${CIRCLE_COLORS[k.color]}" stroke-width="${sw}"${k.dashed ? ` stroke-dasharray="${n(sw * 3)} ${n(sw * 2)}"` : ""}/>`;
+    return k.kind === "rect"
+      ? `<rect x="${n(k.x * iw - k.r * m)}" y="${n(k.y * ih - (k.h ?? k.r) * m)}" width="${n(2 * k.r * m)}" height="${n(2 * (k.h ?? k.r) * m)}" ${stroke}`
+      : `<circle cx="${n(k.x * iw)}" cy="${n(k.y * ih)}" r="${n(k.r * m)}" ${stroke}`;
+  }).join("");
   const box = `x="${n(c.x * iw)}" y="${n(c.y * ih)}" width="${n(c.w * iw)}" height="${n(c.h * ih)}"`;
   const panel = o.board ? boardSvg(o.board, boardLayout(o.board, { x: c.x * iw, y: c.y * ih, w: c.w * iw, h: c.h * ih })) : "";
   return `<svg viewBox="${n(c.x * iw)} ${n(c.y * ih)} ${n(c.w * iw)} ${n(c.h * ih)}" role="img" aria-label="${o.label}"><clipPath id="${o.clipId}"><rect ${box}/></clipPath><g clip-path="url(#${o.clipId})"><image href="${o.href}" x="${n((iw - o.width) / 2)}" y="${n((ih - o.height) / 2)}" width="${o.width}" height="${o.height}" transform="rotate(${o.rotation} ${n(iw / 2)} ${n(ih / 2)})"/>${circles}${panel}</g></svg>`;

@@ -33,7 +33,11 @@ export function migratePhotoBoards(db: Db) {
 }
 export const PHOTO_BOARD_MAX_PHOTOS = 40;
 const text = (max: number) => z.string().trim().max(max);
-const circle = z.object({ x: z.number().min(0).max(1), y: z.number().min(0).max(1), r: z.number().min(0.01).max(0.5), color: z.enum(["red", "yellow", "blue"]) }).strict();
+// kind/h/dashed (2단계 도형) are optional so scenes saved before them stay valid.
+const circle = z.object({
+  x: z.number().min(0).max(1), y: z.number().min(0).max(1), r: z.number().min(0.01).max(0.5), color: z.enum(["red", "yellow", "blue"]),
+  kind: z.literal("rect").optional(), h: z.number().min(0.01).max(0.5).optional(), dashed: z.literal(true).optional(),
+}).strict();
 // 보드판 (docs/PHOTO_BOARD_FRANVIEW_ANALYSIS.md): optional; older saved scenes stay valid.
 const boardPanel = z.object({
   rows: z.array(z.object({ label: text(20), value: text(200) }).strict()).min(1).max(BOARD_MAX_ROWS),
